@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   description: 'Borrow against Bitcoin at 1% APR. Pay for anything digital without selling your BTC.',
 }
 
+// Force dynamic rendering for all pages (required for Web3/wallet libraries)
+export const dynamic = 'force-dynamic'
+
 export default function RootLayout({
   children,
 }: {

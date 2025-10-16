@@ -1,10 +1,10 @@
 'use client'
 
 import React from 'react'
-import { WagmiProvider, http } from 'wagmi'
+import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit'
-import { defineChain } from 'viem'
+import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
+import { getConfig } from '@mezo-org/passport'
 import '@rainbow-me/rainbowkit/styles.css'
 
 const queryClient = new QueryClient()
@@ -17,45 +17,19 @@ const customTheme = darkTheme({
   fontStack: 'system',
 })
 
-// Define Mezo testnet
-const mezoTestnet = defineChain({
-  id: 31611,
-  name: 'Mezo Testnet',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'Bitcoin',
-    symbol: 'BTC',
-  },
-  rpcUrls: {
-    default: {
-      http: ['https://rpc.test.mezo.org'],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: 'Mezo Explorer',
-      url: 'https://explorer.test.mezo.org',
-    },
-  },
-  testnet: true,
-})
-
-// Configure wagmi with RainbowKit
-const config = getDefaultConfig({
+// Use Mezo Passport config for Bitcoin + Mezo wallet support
+const config = getConfig({
   appName: 'BitBNPL',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
-  chains: [mezoTestnet],
-  transports: {
-    [mezoTestnet.id]: http(),
-  },
-  ssr: true,
+  walletConnectProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
+  mezoNetwork: 'testnet', // Use Mezo Testnet (Matsnet)
+  // This automatically configures Mezo Testnet + Bitcoin wallets (Unisat, Xverse, OKX)
 })
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={customTheme} initialChain={mezoTestnet}>
+        <RainbowKitProvider theme={customTheme}>
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>

@@ -14,7 +14,7 @@ export default function Home() {
               Universal Bitcoin Payment Infrastructure
             </h1>
             <p className="text-xl md:text-2xl text-[var(--text-secondary)] mb-8">
-              Borrow against your Bitcoin at <span className="text-[var(--color-accent-600)] font-semibold">1% APR</span> and pay for anything digital without selling your BTC
+              Mint <span className="text-[var(--color-accent-600)] font-semibold">MUSD</span> against your Bitcoin, pay in installments at <span className="text-[var(--color-accent-600)] font-semibold">1% APR</span>, and shop without selling your BTC
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/demo">
@@ -55,13 +55,47 @@ export default function Home() {
         </div>
       </section>
 
+      {/* MUSD Explainer */}
+      <section className="py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <Card padding="lg" className="max-w-4xl mx-auto gradient-accent">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold mb-4">What is MUSD?</h2>
+              <p className="text-lg text-[var(--text-secondary)] mb-6">
+                MUSD is Mezo&apos;s Bitcoin-backed stablecoin. Each MUSD is redeemable for $1 worth of Bitcoin, maintaining its peg through Bitcoin collateral stored in secure Mezo vaults.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                <div>
+                  <h3 className="font-semibold mb-2 text-[var(--text-primary)]">1:1 Bitcoin Backed</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Every MUSD is backed by real Bitcoin collateral, verifiable on-chain
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2 text-[var(--text-primary)]">Always Redeemable</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Redeem MUSD for $1 worth of BTC anytime, ensuring price stability
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2 text-[var(--text-primary)]">Non-Custodial</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    You keep control of your Bitcoin, it stays in your vault
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section className="py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">How BitBNPL Works</h2>
             <p className="text-xl text-[var(--text-secondary)]">
-              Simple, fast, and secure Bitcoin-backed payments
+              Simple, fast, and secure Bitcoin-backed payments with MUSD
             </p>
           </div>
 
@@ -83,9 +117,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-full bg-[var(--color-accent-600)]/10 flex items-center justify-center mb-4">
                   <span className="text-[var(--color-accent-600)] font-bold text-xl">2</span>
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Get Instant Credit</h3>
+                <h3 className="text-lg font-semibold mb-2">Mint MUSD</h3>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Receive borrowing capacity up to 90% of your Bitcoin value
+                  Borrow up to 90% of your Bitcoin value in MUSD stablecoin
                 </p>
               </div>
             </Card>
@@ -95,9 +129,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-full bg-[var(--color-accent-600)]/10 flex items-center justify-center mb-4">
                   <span className="text-[var(--color-accent-600)] font-bold text-xl">3</span>
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Shop Anywhere</h3>
+                <h3 className="text-lg font-semibold mb-2">Shop with MUSD</h3>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Use BitBNPL at any integrated merchant at 1% APR
+                  Spend your MUSD at any integrated merchant at 1% APR
                 </p>
               </div>
             </Card>
@@ -107,9 +141,9 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-full bg-[var(--color-accent-600)]/10 flex items-center justify-center mb-4">
                   <span className="text-[var(--color-accent-600)] font-bold text-xl">4</span>
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Repay Flexibly</h3>
+                <h3 className="text-lg font-semibold mb-2">Flexible Repayment</h3>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Pay back anytime, no fixed schedule, unlock your Bitcoin
+                  Choose installments (3, 6, or 12 months) or pay in full anytime
                 </p>
               </div>
             </Card>

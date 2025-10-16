@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
+    "@mezo-org/musd-contracts": "^1.0.2",
     "@mezo-org/passport": "^0.11.0",
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tanstack/react-query": "^5.90.2",
