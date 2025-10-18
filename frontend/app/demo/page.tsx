@@ -1,21 +1,24 @@
 'use client'
 
-import { useState } from 'react'
 import { Card, Button, Badge } from '@/components/ui'
 import { mockProducts, formatCurrency, type Product } from '@/lib/mockData'
 import { ShoppingCart, Package } from 'lucide-react'
 import Link from 'next/link'
+import { useCart } from '@/contexts/CartContext'
 
 export default function DemoStorePage() {
-  const [cart, setCart] = useState<Product[]>([])
+  const { addToCart, cartTotal, cartCount } = useCart()
   const products = mockProducts
 
-  const addToCart = (product: Product) => {
-    setCart([...cart, product])
+  const handleAddToCart = (product: Product) => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      category: product.category,
+    })
   }
-
-  const cartTotal = cart.reduce((sum, item) => sum + item.price, 0)
-  const cartCount = cart.length
 
   return (
     <main className="min-h-screen py-8">
@@ -123,7 +126,7 @@ export default function DemoStorePage() {
                   variant="accent"
                   fullWidth
                   disabled={!product.inStock}
-                  onClick={() => addToCart(product)}
+                  onClick={() => handleAddToCart(product)}
                 >
                   {product.inStock ? 'Add to Cart' : 'Out of Stock'}
                 </Button>

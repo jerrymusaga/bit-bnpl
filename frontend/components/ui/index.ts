@@ -10,3 +10,5 @@ export type { BadgeProps } from './Badge'
 
 export { Input } from './Input'
 export type { InputProps } from './Input'
+
+export { Modal } from './Modal'

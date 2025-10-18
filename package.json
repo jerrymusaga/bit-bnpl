@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "sats-connect": "^4.1.1"
+  }
+}

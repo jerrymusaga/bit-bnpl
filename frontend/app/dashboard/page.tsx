@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useAccount, useBalance } from 'wagmi'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import {
@@ -9,18 +10,32 @@ import {
   formatDate
 } from '@/lib/mockData'
 import { useMezoContracts, formatMUSD } from '@/hooks/useMezoContracts'
-import { TrendingUp, AlertCircle, Clock, CheckCircle } from 'lucide-react'
+import { AddCollateralModal } from '@/components/modals/AddCollateralModal'
+import { BorrowMUSDModal } from '@/components/modals/BorrowMUSDModal'
+import { RepayMUSDModal } from '@/components/modals/RepayMUSDModal'
+import { ActiveInstallments } from '@/components/dashboard/ActiveInstallments'
+import { CollateralHealthMeter } from '@/components/dashboard/CollateralHealthMeter'
+import { StatsCard } from '@/components/dashboard/StatsCard'
+import { TrendingUp, AlertCircle, Clock, CheckCircle, Coins, Wallet, DollarSign, Activity } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount()
   const { data: balance } = useBalance({ address })
 
+  // Modal states
+  const [isAddCollateralOpen, setIsAddCollateralOpen] = useState(false)
+  const [isBorrowMUSDOpen, setIsBorrowMUSDOpen] = useState(false)
+  const [isRepayMUSDOpen, setIsRepayMUSDOpen] = useState(false)
+
   // Use real Mezo contract data
   const {
     borrowingCapacity,
     currentDebt,
+    accruedInterest,
     collateralAmount,
+    btcPrice,
+    liquidationReserve,
     isLoading: mezoLoading,
   } = useMezoContracts()
 
@@ -50,12 +65,11 @@ export default function DashboardPage() {
   // Calculate derived values
   const collateralAmountNum = parseFloat(collateralAmount)
   const currentDebtNum = parseFloat(currentDebt)
+  const accruedInterestNum = parseFloat(accruedInterest)
   const borrowingCapacityNum = parseFloat(borrowingCapacity)
   const availableMUSD = Math.max(0, borrowingCapacityNum - currentDebtNum)
 
-  // Calculate collateralization ratio (collateral / debt * 100)
-  // Assuming 1 BTC = $83,333 (approximate from mock data)
-  const btcPrice = 83333
+  // Calculate collateralization ratio using real BTC price from Mezo PriceFeed oracle
   const collateralUSDValue = collateralAmountNum * btcPrice
   const collateralRatio = currentDebtNum > 0
     ? (collateralUSDValue / currentDebtNum) * 100
@@ -66,13 +80,12 @@ export default function DashboardPage() {
     ? collateralUSDValue / (currentDebtNum * 1.1) // 110% minimum
     : 10
 
-  // Mock loan creation date (in production, get from contract events)
-  const loanCreatedAt = new Date('2024-09-15T10:30:00Z')
+  // Member since date (TODO: get from Mezo TroveUpdated event for real trove creation date)
+  // For now, show current date if user has collateral, otherwise show placeholder
+  const loanCreatedAt = collateralAmountNum > 0 ? new Date() : null
 
-  // Interest calculation (1% APR - simplified)
-  const daysSinceCreation = 30 // Mock value
-  const accruedInterest = currentDebtNum * 0.01 * (daysSinceCreation / 365)
-  const totalOwed = currentDebtNum + accruedInterest
+  // Total owed = principal + real accrued interest from Mezo contract
+  const totalOwed = currentDebtNum + accruedInterestNum
 
   // Transaction history (still using mock data for now)
   const transactions = mockTransactions
@@ -82,10 +95,27 @@ export default function DashboardPage() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-          <p className="text-[var(--text-secondary)]">
-            Manage your Bitcoin collateral and loans
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-[var(--color-accent-600)] to-[var(--color-primary-600)] bg-clip-text text-transparent">
+                Dashboard
+              </h1>
+              <p className="text-[var(--text-secondary)]">
+                Manage your Bitcoin collateral and loans
+              </p>
+            </div>
+            {address && (
+              <div className="hidden md:flex items-center space-x-3 px-4 py-2 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <div>
+                  <p className="text-xs text-[var(--text-muted)]">Connected</p>
+                  <p className="text-sm font-mono text-[var(--text-primary)]">
+                    {address.slice(0, 6)}...{address.slice(-4)}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Loading State */}
@@ -97,59 +127,38 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card padding="lg">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm text-[var(--text-tertiary)]">Bitcoin Collateral</span>
-              <TrendingUp className="h-5 w-5 text-[var(--color-success-500)]" />
-            </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">
-              {formatBTC(collateralAmountNum)}
-            </div>
-            <div className="text-sm text-[var(--text-muted)]">
-              {formatCurrency(collateralUSDValue)}
-            </div>
-          </Card>
+          <StatsCard
+            title="Bitcoin Collateral"
+            value={formatBTC(collateralAmountNum)}
+            subtitle={formatCurrency(collateralUSDValue)}
+            icon={Coins}
+            trend={{ value: collateralAmountNum > 0 ? '+100%' : '0%', isPositive: true }}
+            color="accent"
+          />
 
-          <Card padding="lg">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm text-[var(--text-tertiary)]">MUSD Borrowed</span>
-            </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">
-              {formatMUSD(currentDebt)}
-            </div>
-            <div className="text-sm text-[var(--color-accent-600)]">
-              @ 1% APR
-            </div>
-          </Card>
+          <StatsCard
+            title="MUSD Borrowed"
+            value={formatMUSD(currentDebt)}
+            subtitle="@ 1% APR"
+            icon={DollarSign}
+            color="primary"
+          />
 
-          <Card padding="lg">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm text-[var(--text-tertiary)]">Available MUSD</span>
-            </div>
-            <div className="text-2xl font-bold text-[var(--color-success-500)] mb-1">
-              {formatMUSD(availableMUSD.toString())}
-            </div>
-            <div className="text-sm text-[var(--text-muted)]">
-              {borrowingCapacityNum > 0
-                ? ((availableMUSD / borrowingCapacityNum) * 100).toFixed(0)
-                : '0'}% available
-            </div>
-          </Card>
+          <StatsCard
+            title="Available MUSD"
+            value={formatMUSD(availableMUSD.toString())}
+            subtitle={`${borrowingCapacityNum > 0 ? ((availableMUSD / borrowingCapacityNum) * 100).toFixed(0) : '0'}% available`}
+            icon={Wallet}
+            color="success"
+          />
 
-          <Card padding="lg">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm text-[var(--text-tertiary)]">Health Factor</span>
-            </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">
-              {healthFactor.toFixed(2)}
-            </div>
-            <Badge
-              variant={healthFactor > 1.5 ? 'success' : healthFactor > 1.1 ? 'warning' : 'error'}
-              size="sm"
-            >
-              {healthFactor > 1.5 ? 'Healthy' : healthFactor > 1.1 ? 'At Risk' : 'Danger'}
-            </Badge>
-          </Card>
+          <StatsCard
+            title="Health Factor"
+            value={healthFactor.toFixed(2)}
+            subtitle={healthFactor > 1.5 ? 'Healthy' : healthFactor > 1.1 ? 'At Risk' : 'Danger'}
+            icon={Activity}
+            color={healthFactor > 1.5 ? 'success' : healthFactor > 1.1 ? 'warning' : 'error'}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -161,6 +170,38 @@ export default function DashboardPage() {
                 <CardTitle>Current Loan Position</CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Summary Banner */}
+                {currentDebtNum > 0 ? (
+                  <>
+                    {/* Collateral Health Meter */}
+                    <div className="mb-6">
+                      <CollateralHealthMeter
+                        collateralRatio={collateralRatio}
+                        healthFactor={healthFactor}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="mb-6 p-6 rounded-xl bg-gradient-to-br from-[var(--color-accent-600)]/10 to-[var(--color-primary-600)]/10 border border-[var(--border-color)]">
+                    <div className="text-center">
+                      <Wallet className="h-12 w-12 text-[var(--color-accent-600)] mx-auto mb-3" />
+                      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+                        No Active Loan
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)] mb-4">
+                        Add Bitcoin collateral and borrow MUSD to start shopping with BitBNPL
+                      </p>
+                      <Button
+                        variant="accent"
+                        size="sm"
+                        onClick={() => setIsAddCollateralOpen(true)}
+                      >
+                        Add Bitcoin Collateral
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4 mt-4">
                   <div className="flex justify-between items-center py-3 border-b border-[var(--border-color)]">
                     <span className="text-[var(--text-secondary)]">MUSD Principal</span>
@@ -169,9 +210,9 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center py-3 border-b border-[var(--border-color)]">
-                    <span className="text-[var(--text-secondary)]">Accrued Interest (1% APR)</span>
+                    <span className="text-[var(--text-secondary)]">Accrued Interest</span>
                     <span className="font-semibold text-[var(--color-accent-600)]">
-                      {formatMUSD(accruedInterest.toString())}
+                      {formatMUSD(accruedInterest)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center py-3 border-b border-[var(--border-color)]">
@@ -180,6 +221,27 @@ export default function DashboardPage() {
                       {formatMUSD(totalOwed.toString())}
                     </span>
                   </div>
+                  {currentDebtNum > 0 && (
+                    <div className="flex justify-between items-center py-3 border-b border-[var(--border-color)]">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-[var(--text-secondary)]">Liquidation Reserve</span>
+                        <div className="group relative">
+                          <AlertCircle className="h-4 w-4 text-[var(--text-muted)] cursor-help" />
+                          <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg shadow-lg text-xs z-10">
+                            <p className="text-[var(--text-secondary)] mb-2">
+                              The protocol holds {formatMUSD(liquidationReserve.toString())} from your borrowed amount as a security deposit.
+                            </p>
+                            <p className="text-[var(--text-muted)]">
+                              This reserve is <span className="text-[var(--color-success-500)] font-semibold">returned to you</span> when you fully repay and close your trove.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="font-semibold text-[var(--color-warning-500)]">
+                        {formatMUSD(liquidationReserve.toString())} (held)
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center py-3">
                     <span className="text-[var(--text-secondary)]">Collateralization Ratio</span>
                     <Badge
@@ -192,15 +254,26 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-6 flex gap-3">
-                  <Button variant="accent" fullWidth>
+                  <Button
+                    variant="accent"
+                    fullWidth
+                    onClick={() => setIsRepayMUSDOpen(true)}
+                  >
                     Repay MUSD
                   </Button>
-                  <Button variant="outline" fullWidth>
+                  <Button
+                    variant="outline"
+                    fullWidth
+                    onClick={() => setIsBorrowMUSDOpen(true)}
+                  >
                     Borrow More MUSD
                   </Button>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Active Installments */}
+            <ActiveInstallments />
 
             {/* Transaction History */}
             <Card padding="lg">
@@ -272,15 +345,34 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="mt-4 space-y-3">
                   <Link href="/demo">
-                    <Button variant="accent" fullWidth>
-                      Shop with BitBNPL
+                    <Button variant="accent" fullWidth className="group">
+                      <span className="flex items-center justify-center space-x-2">
+                        <Coins className="h-4 w-4" />
+                        <span>Shop with BitBNPL</span>
+                      </span>
                     </Button>
                   </Link>
-                  <Button variant="outline" fullWidth>
-                    Add Bitcoin Collateral
+                  <Button
+                    variant="outline"
+                    fullWidth
+                    onClick={() => setIsAddCollateralOpen(true)}
+                    className="group"
+                  >
+                    <span className="flex items-center justify-center space-x-2">
+                      <TrendingUp className="h-4 w-4 group-hover:text-[var(--color-success-500)] transition-colors" />
+                      <span>Add Bitcoin Collateral</span>
+                    </span>
                   </Button>
-                  <Button variant="outline" fullWidth>
-                    Withdraw Available
+                  <Button
+                    variant="outline"
+                    fullWidth
+                    onClick={() => setIsBorrowMUSDOpen(true)}
+                    className="group"
+                  >
+                    <span className="flex items-center justify-center space-x-2">
+                      <DollarSign className="h-4 w-4 group-hover:text-[var(--color-primary-500)] transition-colors" />
+                      <span>Borrow More MUSD</span>
+                    </span>
                   </Button>
                 </div>
               </CardContent>
@@ -293,22 +385,37 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="mt-4 space-y-4">
-                  <div>
-                    <span className="text-sm text-[var(--text-tertiary)]">Wallet Address</span>
-                    <p className="font-mono text-sm text-[var(--text-primary)] mt-1 break-all">
+                  <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-[var(--text-tertiary)] font-medium uppercase tracking-wide">
+                        Wallet Address
+                      </span>
+                      <Wallet className="h-4 w-4 text-[var(--text-muted)]" />
+                    </div>
+                    <p className="font-mono text-xs text-[var(--text-primary)] break-all">
                       {address}
                     </p>
                   </div>
-                  <div>
-                    <span className="text-sm text-[var(--text-tertiary)]">Wallet Balance</span>
-                    <p className="font-semibold text-[var(--text-primary)] mt-1">
+                  <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-[var(--text-tertiary)] font-medium uppercase tracking-wide">
+                        Wallet Balance
+                      </span>
+                      <Coins className="h-4 w-4 text-[var(--text-muted)]" />
+                    </div>
+                    <p className="font-semibold text-[var(--text-primary)]">
                       {balance ? `${parseFloat(balance.formatted).toFixed(4)} ${balance.symbol}` : 'Loading...'}
                     </p>
                   </div>
-                  <div>
-                    <span className="text-sm text-[var(--text-tertiary)]">Member Since</span>
-                    <p className="font-semibold text-[var(--text-primary)] mt-1">
-                      {formatDate(loanCreatedAt)}
+                  <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-[var(--text-tertiary)] font-medium uppercase tracking-wide">
+                        Member Since
+                      </span>
+                      <Clock className="h-4 w-4 text-[var(--text-muted)]" />
+                    </div>
+                    <p className="font-semibold text-[var(--text-primary)]">
+                      {loanCreatedAt ? formatDate(loanCreatedAt) : 'No active trove'}
                     </p>
                   </div>
                 </div>
@@ -316,22 +423,56 @@ export default function DashboardPage() {
             </Card>
 
             {/* Risk Warning */}
-            <Card padding="lg" className="border-[var(--color-warning-500)]/20">
+            <Card
+              padding="lg"
+              className="border-[var(--color-warning-500)]/20 bg-gradient-to-br from-[var(--color-warning-500)]/5 to-transparent"
+            >
               <div className="flex items-start space-x-3">
-                <AlertCircle className="h-5 w-5 text-[var(--color-warning-500)] mt-0.5" />
+                <div className="w-10 h-10 rounded-full bg-[var(--color-warning-500)]/10 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 text-[var(--color-warning-500)]" />
+                </div>
                 <div>
-                  <h4 className="font-semibold text-[var(--text-primary)] mb-1">
-                    Liquidation Risk
+                  <h4 className="font-semibold text-[var(--text-primary)] mb-2 flex items-center space-x-2">
+                    <span>Liquidation Risk</span>
+                    {healthFactor < 1.5 && healthFactor > 0 && (
+                      <Badge variant="warning" size="sm">
+                        Monitor Closely
+                      </Badge>
+                    )}
                   </h4>
-                  <p className="text-sm text-[var(--text-secondary)]">
+                  <p className="text-sm text-[var(--text-secondary)] mb-3">
                     Keep your collateral ratio above 110% to avoid liquidation. Add more Bitcoin if BTC price drops.
                   </p>
+                  {currentDebtNum > 0 && (
+                    <div className="p-2 bg-[var(--bg-card)] rounded border border-[var(--border-color)]">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[var(--text-muted)]">Liquidation Price</span>
+                        <span className="font-semibold text-[var(--text-primary)]">
+                          ${((currentDebtNum * 1.1) / collateralAmountNum).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <AddCollateralModal
+        isOpen={isAddCollateralOpen}
+        onClose={() => setIsAddCollateralOpen(false)}
+      />
+      <BorrowMUSDModal
+        isOpen={isBorrowMUSDOpen}
+        onClose={() => setIsBorrowMUSDOpen(false)}
+      />
+      <RepayMUSDModal
+        isOpen={isRepayMUSDOpen}
+        onClose={() => setIsRepayMUSDOpen(false)}
+      />
     </main>
   )
 }

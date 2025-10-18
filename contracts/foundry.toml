@@ -1,0 +1,21 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.23"
+chain_id = 31611
+eth_rpc_url = "https://rpc.test.mezo.org"
+evm_version = 'london'
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+
+
+# Testing
+fuzz_runs = 256
+invariant_runs = 256
+
+# Formatting
+line_length = 100
+tab_width = 4
+bracket_spacing = true
