@@ -5,6 +5,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+interface IMerchantRegistry {
+    function isActiveMerchant(address walletAddress) external view returns (bool);
+    function recordTransaction(address merchantAddress, uint256 amount) external;
+    function calculatePlatformFee(uint256 amount) external pure returns (uint256);
+    function calculateMerchantAmount(uint256 amount) external pure returns (uint256);
+}
+
 /**
  * @title InstallmentProcessor
  * @notice Handles BNPL installment payments for BitBNPL platform
@@ -12,6 +19,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  */
 contract InstallmentProcessor is Ownable, ReentrancyGuard {
     IERC20 public immutable MUSD;
+    IMerchantRegistry public merchantRegistry;
+
+    // Platform fee wallet
+    address public platformFeeWallet;
 
     // Payment intervals (2 weeks in seconds)
     uint256 public constant PAYMENT_INTERVAL = 2 weeks;
@@ -39,6 +50,18 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
     // User purchases mapping: user => purchaseId => Purchase
     mapping(address => mapping(uint256 => Purchase)) public userPurchases;
     mapping(address => uint256) public userPurchaseCount;
+
+    // Global purchase tracking for admin dashboard
+    struct GlobalPurchase {
+        address user;
+        uint256 userPurchaseId;
+    }
+    GlobalPurchase[] public allPurchases;
+    uint256 public totalPurchasesCount;
+
+    // Platform statistics
+    uint256 public totalVolumeProcessed;
+    uint256 public totalFeesCollected;
 
     // Interest rates per installment plan (in basis points)
     mapping(uint8 => uint256) public interestRates;
@@ -73,8 +96,14 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
     event LiquidityDeposited(address indexed depositor, uint256 amount);
     event LiquidityWithdrawn(address indexed recipient, uint256 amount);
 
-    constructor(address _musdAddress) Ownable(msg.sender) {
+    constructor(
+        address _musdAddress,
+        address _merchantRegistry,
+        address _platformFeeWallet
+    ) Ownable(msg.sender) {
         MUSD = IERC20(_musdAddress);
+        merchantRegistry = IMerchantRegistry(_merchantRegistry);
+        platformFeeWallet = _platformFeeWallet;
 
         // Set interest rates (in basis points: 100 = 1%)
         interestRates[1] = 0;    // 0% for pay in full
@@ -84,14 +113,32 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @notice Update merchant registry address
+     * @param _merchantRegistry New merchant registry address
+     */
+    function setMerchantRegistry(address _merchantRegistry) external onlyOwner {
+        merchantRegistry = IMerchantRegistry(_merchantRegistry);
+    }
+
+    /**
+     * @notice Update platform fee wallet
+     * @param _platformFeeWallet New platform fee wallet address
+     */
+    function setPlatformFeeWallet(address _platformFeeWallet) external onlyOwner {
+        require(_platformFeeWallet != address(0), "Invalid address");
+        platformFeeWallet = _platformFeeWallet;
+    }
+
+    /**
      * @notice Deposit MUSD into liquidity pool
      * @param amount Amount of MUSD to deposit
      */
-    function depositLiquidity(uint256 amount) external onlyOwner {
+    function depositLiquidity(uint256 amount) external onlyOwner nonReentrant {
         require(amount > 0, "Amount must be > 0");
-        require(MUSD.transferFrom(msg.sender, address(this), amount), "Transfer failed");
 
         liquidityPool += amount;
+        require(MUSD.transferFrom(msg.sender, address(this), amount), "Transfer failed");
+
         emit LiquidityDeposited(msg.sender, amount);
     }
 
@@ -99,17 +146,19 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
      * @notice Withdraw MUSD from liquidity pool
      * @param amount Amount of MUSD to withdraw
      */
-    function withdrawLiquidity(uint256 amount) external onlyOwner {
+    function withdrawLiquidity(uint256 amount) external onlyOwner nonReentrant {
         require(amount <= liquidityPool, "Insufficient liquidity");
-        liquidityPool -= amount;
 
+        liquidityPool -= amount;
         require(MUSD.transfer(msg.sender, amount), "Transfer failed");
+
         emit LiquidityWithdrawn(msg.sender, amount);
     }
 
     /**
      * @notice Create a new installment purchase
-     * @param merchant Address to receive payment
+     * @dev FLOW: Platform pays merchant instantly, user pays platform back in installments
+     * @param merchant Address to receive payment (must be registered merchant)
      * @param amount Purchase amount in MUSD
      * @param installments Number of installment payments (1, 4, 6, or 8)
      * @param userBorrowingCapacity User's available borrowing capacity from Mezo
@@ -129,16 +178,22 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
         require(amount <= userBorrowingCapacity, "Insufficient borrowing capacity");
         require(amount <= liquidityPool, "Insufficient platform liquidity");
 
-        // Calculate interest and total
+        // Verify merchant is registered and active
+        require(
+            merchantRegistry.isActiveMerchant(merchant),
+            "Merchant not registered or inactive"
+        );
+
+        // Calculate interest and total that USER will pay back to PLATFORM
         uint256 interest = (amount * interestRates[installments]) / BASIS_POINTS;
         uint256 totalWithInterest = amount + interest;
         uint256 amountPerPayment = totalWithInterest / installments;
 
-        // Pay merchant instantly from liquidity pool
-        liquidityPool -= amount;
-        require(MUSD.transfer(merchant, amount), "Merchant payment failed");
+        // Calculate platform fee (1%) and merchant's net amount
+        uint256 platformFee = merchantRegistry.calculatePlatformFee(amount);
+        uint256 merchantAmount = amount - platformFee;
 
-        // Create purchase record
+        // Create purchase record BEFORE external calls (CEI pattern)
         uint256 purchaseId = userPurchaseCount[msg.sender];
         userPurchases[msg.sender][purchaseId] = Purchase({
             user: msg.sender,
@@ -155,6 +210,27 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
         });
 
         userPurchaseCount[msg.sender]++;
+
+        // Track globally for admin dashboard
+        allPurchases.push(GlobalPurchase({
+            user: msg.sender,
+            userPurchaseId: purchaseId
+        }));
+        totalPurchasesCount++;
+        totalVolumeProcessed += amount;
+        totalFeesCollected += platformFee;
+
+        // Update liquidity pool BEFORE transfers
+        liquidityPool -= amount;
+
+        // PLATFORM pays MERCHANT instantly from liquidity pool (minus platform fee)
+        require(MUSD.transfer(merchant, merchantAmount), "Merchant payment failed");
+
+        // Transfer platform fee to platform wallet
+        require(MUSD.transfer(platformFeeWallet, platformFee), "Platform fee transfer failed");
+
+        // Record transaction in merchant registry
+        merchantRegistry.recordTransaction(merchant, amount);
 
         emit PurchaseCreated(msg.sender, purchaseId, merchant, amount, installments);
 
@@ -181,24 +257,28 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
             emit LateFeeApplied(msg.sender, purchaseId, lateFee);
         }
 
+        // Update purchase state BEFORE external calls (CEI pattern)
+        purchase.paymentsRemaining--;
+        purchase.nextPaymentDue = block.timestamp + PAYMENT_INTERVAL;
+
+        // Update liquidity pool BEFORE transfer
+        liquidityPool += paymentAmount;
+
+        // Mark as complete if all payments made
+        bool isComplete = purchase.paymentsRemaining == 0;
+        if (isComplete) {
+            purchase.isActive = false;
+        }
+
         // Transfer payment from user to platform
         require(
             MUSD.transferFrom(msg.sender, address(this), paymentAmount),
             "Payment transfer failed"
         );
 
-        // Replenish liquidity pool
-        liquidityPool += paymentAmount;
-
-        // Update purchase state
-        purchase.paymentsRemaining--;
-        purchase.nextPaymentDue = block.timestamp + PAYMENT_INTERVAL;
-
         emit PaymentMade(msg.sender, purchaseId, paymentAmount, purchase.paymentsRemaining);
 
-        // Mark as complete if all payments made
-        if (purchase.paymentsRemaining == 0) {
-            purchase.isActive = false;
+        if (isComplete) {
             emit PurchaseCompleted(msg.sender, purchaseId);
         }
     }
@@ -297,5 +377,90 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
         }
 
         return totalOwed;
+    }
+
+    /**
+     * @notice Get all purchases (paginated) - Admin function
+     * @param offset Starting index
+     * @param limit Number of purchases to return
+     */
+    function getAllPurchases(uint256 offset, uint256 limit)
+        external
+        view
+        returns (
+            address[] memory users,
+            uint256[] memory purchaseIds,
+            address[] memory merchants,
+            uint256[] memory amounts,
+            uint256[] memory amountsWithInterest,
+            uint8[] memory paymentsTotal,
+            uint8[] memory paymentsRemaining,
+            bool[] memory isActive
+        )
+    {
+        require(offset < allPurchases.length, "Offset out of bounds");
+
+        uint256 end = offset + limit;
+        if (end > allPurchases.length) {
+            end = allPurchases.length;
+        }
+
+        uint256 resultSize = end - offset;
+
+        users = new address[](resultSize);
+        purchaseIds = new uint256[](resultSize);
+        merchants = new address[](resultSize);
+        amounts = new uint256[](resultSize);
+        amountsWithInterest = new uint256[](resultSize);
+        paymentsTotal = new uint8[](resultSize);
+        paymentsRemaining = new uint8[](resultSize);
+        isActive = new bool[](resultSize);
+
+        for (uint256 i = 0; i < resultSize; i++) {
+            GlobalPurchase storage gp = allPurchases[offset + i];
+            Purchase storage p = userPurchases[gp.user][gp.userPurchaseId];
+
+            users[i] = gp.user;
+            purchaseIds[i] = gp.userPurchaseId;
+            merchants[i] = p.merchant;
+            amounts[i] = p.totalAmount;
+            amountsWithInterest[i] = p.totalWithInterest;
+            paymentsTotal[i] = p.paymentsTotal;
+            paymentsRemaining[i] = p.paymentsRemaining;
+            isActive[i] = p.isActive;
+        }
+
+        return (users, purchaseIds, merchants, amounts, amountsWithInterest, paymentsTotal, paymentsRemaining, isActive);
+    }
+
+    /**
+     * @notice Get platform statistics - Admin function
+     */
+    function getPlatformStats()
+        external
+        view
+        returns (
+            uint256 _totalPurchases,
+            uint256 _totalVolumeProcessed,
+            uint256 _totalFeesCollected,
+            uint256 _liquidityPool,
+            uint256 _activePurchasesCount
+        )
+    {
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < allPurchases.length; i++) {
+            GlobalPurchase storage gp = allPurchases[i];
+            if (userPurchases[gp.user][gp.userPurchaseId].isActive) {
+                activeCount++;
+            }
+        }
+
+        return (
+            totalPurchasesCount,
+            totalVolumeProcessed,
+            totalFeesCollected,
+            liquidityPool,
+            activeCount
+        );
     }
 }

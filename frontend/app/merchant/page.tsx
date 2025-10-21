@@ -1,318 +1,362 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useAccount } from 'wagmi'
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
-import {
-  mockMerchantStats,
-  mockMerchantTransactions,
-  formatMUSD,
-  formatDate
-} from '@/lib/mockData'
-import { DollarSign, ShoppingCart, TrendingUp, Users, Download } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useMerchantRegistry } from '@/hooks/useMerchantRegistry'
+import { Card, Button } from '@/components/ui'
+import { Store, ArrowRight, Sparkles, Shield, Zap, TrendingUp, CheckCircle, Code } from 'lucide-react'
+import Link from 'next/link'
 
 export default function MerchantPage() {
-  const { address, isConnected } = useAccount()
+  const { isConnected } = useAccount()
+  const router = useRouter()
+  const { merchantData } = useMerchantRegistry()
 
-  const stats = mockMerchantStats
-  const transactions = mockMerchantTransactions
+  // Redirect to dashboard if already registered
+  useEffect(() => {
+    if (isConnected && merchantData?.isActive) {
+      router.push('/merchant/dashboard')
+    }
+  }, [isConnected, merchantData, router])
 
   return (
-    <main className="min-h-screen py-8">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Merchant Dashboard</h1>
-            <p className="text-[var(--text-secondary)]">
-              Track your BitBNPL transactions and revenue
+    <main className="min-h-screen">
+      {/* Hero Section */}
+      <section className="relative py-24 md:py-32 overflow-hidden">
+        <div className="absolute inset-0 gradient-primary opacity-50" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,107,0,0.1),transparent)]" />
+
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-[var(--color-accent-600)]/10 border border-[var(--color-accent-600)]/20 mb-8">
+              <Sparkles className="h-4 w-4 text-[var(--color-accent-600)]" />
+              <span className="text-sm font-medium text-[var(--color-accent-600)]">
+                For Merchants & Businesses
+              </span>
+            </div>
+
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+              <span className="bg-gradient-to-r from-[var(--color-accent-600)] to-[var(--color-primary-600)] bg-clip-text text-transparent">
+                Get Paid Instantly,
+              </span>
+              <br />
+              While Customers Pay Later
+            </h1>
+
+            <p className="text-xl md:text-2xl text-[var(--text-secondary)] mb-12 max-w-3xl mx-auto leading-relaxed">
+              Accept BitBNPL payments and receive <span className="text-[var(--color-accent-600)] font-semibold">100% of your money instantly</span>, while your customers enjoy flexible installments. No chargebacks, no waiting.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <Link href="/merchant/register">
+                <Button variant="accent" size="lg" className="group">
+                  <span className="flex items-center space-x-2">
+                    <span>Get Started Free</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </Button>
+              </Link>
+              <Link href="#how-it-works">
+                <Button variant="outline" size="lg">
+                  <span className="flex items-center space-x-2">
+                    <span>Learn More</span>
+                  </span>
+                </Button>
+              </Link>
+            </div>
+
+            {/* Trust Indicators */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-[var(--text-muted)]">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-[var(--color-success-500)]" />
+                <span>Instant Settlement</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-[var(--color-success-500)]" />
+                <span>Only 1% Fee</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-[var(--color-success-500)]" />
+                <span>Zero Chargebacks</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="py-20 bg-[var(--bg-secondary)]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Why Merchants Love BitBNPL</h2>
+            <p className="text-xl text-[var(--text-secondary)]">
+              The payment solution built for modern businesses
             </p>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export Data
-            </Button>
-            <Button variant="accent">
-              Integration Docs
-            </Button>
-          </div>
-        </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card padding="lg">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm text-[var(--text-tertiary)]">Total Revenue</span>
-              <DollarSign className="h-5 w-5 text-[var(--color-success-500)]" />
-            </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">
-              {formatMUSD(stats.totalRevenue)}
-            </div>
-            <div className="text-sm text-[var(--color-success-500)]">
-              +12.5% from last month
-            </div>
-          </Card>
-
-          <Card padding="lg">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm text-[var(--text-tertiary)]">Total Transactions</span>
-              <ShoppingCart className="h-5 w-5 text-[var(--color-accent-600)]" />
-            </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">
-              {stats.totalTransactions}
-            </div>
-            <div className="text-sm text-[var(--text-muted)]">
-              Across all products
-            </div>
-          </Card>
-
-          <Card padding="lg">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm text-[var(--text-tertiary)]">Average Order</span>
-              <TrendingUp className="h-5 w-5 text-[var(--color-primary-400)]" />
-            </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">
-              {formatMUSD(stats.averageOrderValue)}
-            </div>
-            <div className="text-sm text-[var(--text-muted)]">
-              Per transaction
-            </div>
-          </Card>
-
-          <Card padding="lg">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-sm text-[var(--text-tertiary)]">Conversion Rate</span>
-              <Users className="h-5 w-5 text-[var(--color-warning-500)]" />
-            </div>
-            <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">
-              {stats.conversionRate}%
-            </div>
-            <div className="text-sm text-[var(--color-success-500)]">
-              +3.2% improvement
-            </div>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recent Transactions */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card padding="lg">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Recent Transactions</CardTitle>
-                  <Button variant="ghost" size="sm">
-                    View All
-                  </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <Card
+              padding="lg"
+              className="group hover:border-[var(--color-success-500)]/40 transition-all"
+            >
+              <div className="mb-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500/20 to-green-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Zap className="h-7 w-7 text-green-500" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mt-4 space-y-3">
-                  {transactions.map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-card-hover)] transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-medium text-[var(--text-primary)]">
-                            {tx.product}
-                          </p>
-                          <Badge
-                            variant={
-                              tx.status === 'completed' ? 'success' :
-                              tx.status === 'pending' ? 'warning' :
-                              'error'
-                            }
-                            size="sm"
-                          >
-                            {tx.status}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-[var(--text-muted)] font-mono">
-                            {tx.buyer.slice(0, 8)}...{tx.buyer.slice(-6)}
-                          </p>
-                          <p className="text-sm text-[var(--text-tertiary)]">
-                            {formatDate(tx.timestamp)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="ml-6 text-right">
-                        <p className="font-semibold text-[var(--text-primary)]">
-                          {formatMUSD(tx.amount)}
-                        </p>
-                        <p className="text-xs text-[var(--text-muted)]">
-                          Fee: {formatMUSD(tx.fee)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Integration Guide */}
-            <Card padding="lg" variant="elevated">
-              <CardHeader>
-                <CardTitle>How to Integrate BitBNPL</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mt-4 space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-accent-600)] text-white flex items-center justify-center text-sm font-bold">
-                      1
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-[var(--text-primary)] mb-1">
-                        Install the SDK
-                      </h4>
-                      <code className="text-sm bg-[var(--bg-secondary)] px-2 py-1 rounded">
-                        npm install @bitbnpl/sdk
-                      </code>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-accent-600)] text-white flex items-center justify-center text-sm font-bold">
-                      2
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-[var(--text-primary)] mb-1">
-                        Add Payment Button
-                      </h4>
-                      <p className="text-sm text-[var(--text-secondary)]">
-                        Drop the BitBNPL button into your checkout page
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-accent-600)] text-white flex items-center justify-center text-sm font-bold">
-                      3
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-[var(--text-primary)] mb-1">
-                        Receive MUSD
-                      </h4>
-                      <p className="text-sm text-[var(--text-secondary)]">
-                        Get paid in MUSD instantly, settle to USD anytime
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button variant="accent" fullWidth className="mt-4">
-                    View Full Documentation
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Sidebar */}
-          <div className="space-y-6">
-            {/* Account Balance */}
-            <Card padding="lg">
-              <CardHeader>
-                <CardTitle>Account Balance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <span className="text-sm text-[var(--text-tertiary)]">Available Balance</span>
-                    <p className="text-2xl font-bold text-[var(--text-primary)] mt-1">
-                      {formatMUSD(8750.50)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-[var(--text-tertiary)]">Pending Settlement</span>
-                    <p className="text-lg font-semibold text-[var(--text-primary)] mt-1">
-                      {formatMUSD(1250.00)}
-                    </p>
-                  </div>
-                  <Button variant="accent" fullWidth>
-                    Withdraw MUSD
-                  </Button>
-                  <Button variant="outline" fullWidth>
-                    Settlement History
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Fee Breakdown */}
-            <Card padding="lg">
-              <CardHeader>
-                <CardTitle>Fee Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mt-4 space-y-3">
-                  <div className="flex justify-between items-center py-2 border-b border-[var(--border-color)]">
-                    <span className="text-sm text-[var(--text-secondary)]">Platform Fee</span>
-                    <span className="font-semibold text-[var(--text-primary)]">2.5%</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-[var(--border-color)]">
-                    <span className="text-sm text-[var(--text-secondary)]">Total Fees (This Month)</span>
-                    <span className="font-semibold text-[var(--text-primary)]">
-                      {formatMUSD(115.20)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-sm text-[var(--text-secondary)]">Avg Fee per Transaction</span>
-                    <span className="font-semibold text-[var(--text-primary)]">
-                      {formatMUSD(28.80)}
-                    </span>
-                  </div>
-                  <div className="bg-[var(--bg-secondary)] p-3 rounded-lg mt-4">
-                    <p className="text-xs text-[var(--text-muted)]">
-                      Save 40-60% vs traditional payment processors
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Benefits */}
-            <Card padding="lg" className="border-[var(--color-success-500)]/20">
-              <div className="flex items-start space-x-3">
-                <TrendingUp className="h-5 w-5 text-[var(--color-success-500)] mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-[var(--text-primary)] mb-1">
-                    Zero Chargebacks
-                  </h4>
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    BitBNPL payments are backed by Bitcoin collateral, eliminating chargeback risk entirely.
-                  </p>
-                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Instant Settlement</h3>
+              <p className="text-[var(--text-secondary)] mb-4">
+                Get paid in seconds, not days or weeks. 99% of sale amount hits your wallet immediately when customer checks out.
+              </p>
+              <div className="text-sm text-green-600 font-medium">
+                Average settlement: 3-5 seconds
               </div>
             </Card>
 
-            {/* Merchant Info */}
-            {isConnected && (
-              <Card padding="lg">
-                <CardHeader>
-                  <CardTitle>Merchant Account</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="mt-4 space-y-3">
-                    <div>
-                      <span className="text-sm text-[var(--text-tertiary)]">Wallet Address</span>
-                      <p className="font-mono text-xs text-[var(--text-primary)] mt-1 break-all">
-                        {address}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-[var(--text-tertiary)]">Account Status</span>
-                      <div className="mt-1">
-                        <Badge variant="success" size="sm">Active</Badge>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <Card
+              padding="lg"
+              className="group hover:border-[var(--color-accent-600)]/40 transition-all"
+            >
+              <div className="mb-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[var(--color-accent-600)]/20 to-[var(--color-accent-600)]/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <TrendingUp className="h-7 w-7 text-[var(--color-accent-600)]" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Lowest Fees</h3>
+              <p className="text-[var(--text-secondary)] mb-4">
+                Only 1% platform fee. Save 66-83% compared to credit cards (3%) or traditional BNPL (4-6%).
+              </p>
+              <div className="text-sm text-[var(--color-accent-600)] font-medium">
+                Save $20-50 per $1,000 sale
+              </div>
+            </Card>
+
+            <Card
+              padding="lg"
+              className="group hover:border-blue-500/40 transition-all"
+            >
+              <div className="mb-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Shield className="h-7 w-7 text-blue-500" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Zero Chargebacks</h3>
+              <p className="text-[var(--text-secondary)] mb-4">
+                Crypto payments are final and backed by Bitcoin collateral. No fraud, no disputes, no reversals.
+              </p>
+              <div className="text-sm text-blue-600 font-medium">
+                100% fraud protection
+              </div>
+            </Card>
+
+            <Card
+              padding="lg"
+              className="group hover:border-purple-500/40 transition-all"
+            >
+              <div className="mb-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Code className="h-7 w-7 text-purple-500" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Easy Integration</h3>
+              <p className="text-[var(--text-secondary)] mb-4">
+                Add BitBNPL to your site in minutes with our widget, SDK, or API. Works with any platform.
+              </p>
+              <div className="text-sm text-purple-600 font-medium">
+                Setup in under 30 minutes
+              </div>
+            </Card>
+
+            <Card
+              padding="lg"
+              className="group hover:border-orange-500/40 transition-all"
+            >
+              <div className="mb-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <TrendingUp className="h-7 w-7 text-orange-500" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Increase Sales</h3>
+              <p className="text-[var(--text-secondary)] mb-4">
+                Customers spend 30-40% more when they can pay in installments. Higher AOV, better conversion.
+              </p>
+              <div className="text-sm text-orange-600 font-medium">
+                +35% average order value
+              </div>
+            </Card>
+
+            <Card
+              padding="lg"
+              className="group hover:border-pink-500/40 transition-all"
+            >
+              <div className="mb-4">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-500/20 to-pink-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <CheckCircle className="h-7 w-7 text-pink-500" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold mb-3">No Risk</h3>
+              <p className="text-[var(--text-secondary)] mb-4">
+                We handle all collections and risk. You get paid upfront, users pay us back over time.
+              </p>
+              <div className="text-sm text-pink-600 font-medium">
+                Zero collection responsibility
+              </div>
+            </Card>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* How It Works */}
+      <section id="how-it-works" className="py-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">How It Works</h2>
+            <p className="text-xl text-[var(--text-secondary)]">
+              Start accepting payments in 3 simple steps
+            </p>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <div className="space-y-8">
+              <div className="flex items-start space-x-6">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-accent-600)] to-[var(--color-accent-500)] flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  1
+                </div>
+                <div className="flex-1 pt-2">
+                  <h3 className="text-2xl font-bold mb-2">Register Your Business</h3>
+                  <p className="text-lg text-[var(--text-secondary)]">
+                    Connect your wallet, provide business details, and get verified within 24-48 hours. No upfront costs.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-6">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-accent-600)] to-[var(--color-accent-500)] flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  2
+                </div>
+                <div className="flex-1 pt-2">
+                  <h3 className="text-2xl font-bold mb-2">Add Payment Button</h3>
+                  <p className="text-lg text-[var(--text-secondary)]">
+                    Copy our widget code or install SDK. Works with Shopify, WooCommerce, custom sites, and more.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-6">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-accent-600)] to-[var(--color-accent-500)] flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  3
+                </div>
+                <div className="flex-1 pt-2">
+                  <h3 className="text-2xl font-bold mb-2">Start Getting Paid</h3>
+                  <p className="text-lg text-[var(--text-secondary)]">
+                    When customers check out, you receive 99% instantly. They pay us back in installments.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="py-20 bg-[var(--bg-secondary)]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
+            <p className="text-xl text-[var(--text-secondary)]">
+              No hidden fees. No monthly costs. Just 1% per transaction.
+            </p>
+          </div>
+
+          <div className="max-w-2xl mx-auto">
+            <Card padding="lg" className="border-[var(--color-accent-600)]/30">
+              <div className="text-center mb-8">
+                <div className="text-6xl font-bold mb-2 bg-gradient-to-r from-[var(--color-accent-600)] to-[var(--color-accent-500)] bg-clip-text text-transparent">
+                  1%
+                </div>
+                <p className="text-xl text-[var(--text-secondary)]">Platform Fee</p>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-[var(--text-primary)]">Instant settlement to your wallet</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-[var(--text-primary)]">No monthly fees</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-[var(--text-primary)]">No setup fees</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-[var(--text-primary)]">No hidden costs</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-[var(--text-primary)]">Free integration support</span>
+                </div>
+              </div>
+
+              <div className="bg-[var(--bg-secondary)] p-6 rounded-xl">
+                <h3 className="font-semibold mb-4 text-center">Example: $1,000 Sale</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-secondary)]">Sale Amount</span>
+                    <span className="font-semibold">$1,000.00</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-secondary)]">Platform Fee (1%)</span>
+                    <span className="font-semibold text-red-500">-$10.00</span>
+                  </div>
+                  <div className="flex justify-between pt-3 border-t border-[var(--border-color)]">
+                    <span className="font-bold">You Receive</span>
+                    <span className="font-bold text-green-500 text-xl">$990.00</span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <Card
+            padding="lg"
+            className="max-w-4xl mx-auto text-center border-[var(--color-accent-600)]/30 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--color-accent-600)]/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-[var(--color-primary-600)]/10 rounded-full blur-3xl" />
+
+            <div className="relative z-10">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--color-accent-600)]/10 border-2 border-[var(--color-accent-600)]/20 mb-6">
+                <Store className="h-10 w-10 text-[var(--color-accent-600)]" />
+              </div>
+
+              <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                Ready to Get Started?
+              </h2>
+              <p className="text-xl text-[var(--text-secondary)] mb-10 max-w-2xl mx-auto">
+                Join BitBNPL and start receiving instant payments today. No contracts, no commitments.
+              </p>
+
+              <Link href="/merchant/register">
+                <Button variant="accent" size="lg" className="group">
+                  <span className="flex items-center space-x-2">
+                    <span>Register Your Business</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </Button>
+              </Link>
+            </div>
+          </Card>
+        </div>
+      </section>
     </main>
   )
 }

@@ -2,10 +2,10 @@
 
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseUnits, formatUnits } from 'viem'
-import InstallmentProcessorABI from '@/lib/abi/InstallmentProcessor.json'
+import InstallmentProcessorABI from '@/lib/abis/InstallmentProcessor.json'
 
-// InstallmentProcessor contract address (will be set after deployment)
-const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS || '0x0000000000000000000000000000000000000000') as `0x${string}`
+// Deployed InstallmentProcessor contract address
+const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0xEE4296C9Ad973F7CD61aBbB138976F3b597Fc0F4'
 
 export interface Purchase {
   merchant: string
@@ -38,12 +38,22 @@ export interface InstallmentProcessorActions {
   makePayment: (purchaseId: number) => Promise<void>
   getPurchase: (purchaseId: number) => Promise<Purchase | null>
   isPaymentLate: (purchaseId: number) => Promise<boolean>
+  depositLiquidity: (amount: string) => Promise<void>
+  withdrawLiquidity: (amount: string) => Promise<void>
   isCreating: boolean
   isPaying: boolean
+  isDepositing: boolean
+  isWithdrawing: boolean
+  isDepositConfirming: boolean
+  isDepositConfirmed: boolean
+  isWithdrawConfirming: boolean
+  isWithdrawConfirmed: boolean
   isConfirming: boolean
   isConfirmed: boolean
   createError: Error | null
   paymentError: Error | null
+  depositError: Error | null
+  withdrawError: Error | null
 }
 
 export function useInstallmentProcessor(): InstallmentProcessorData & InstallmentProcessorActions {
@@ -64,6 +74,20 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     error: paymentError,
   } = useWriteContract()
 
+  const {
+    writeContract: depositWrite,
+    data: depositHash,
+    isPending: isDepositing,
+    error: depositError,
+  } = useWriteContract()
+
+  const {
+    writeContract: withdrawWrite,
+    data: withdrawHash,
+    isPending: isWithdrawing,
+    error: withdrawError,
+  } = useWriteContract()
+
   // Transaction confirmation hooks
   const { isLoading: isCreateConfirming, isSuccess: isCreateConfirmed } = useWaitForTransactionReceipt({
     hash: createHash,
@@ -71,6 +95,14 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
 
   const { isLoading: isPayConfirming, isSuccess: isPayConfirmed } = useWaitForTransactionReceipt({
     hash: payHash,
+  })
+
+  const { isLoading: isDepositConfirming, isSuccess: isDepositConfirmed } = useWaitForTransactionReceipt({
+    hash: depositHash,
+  })
+
+  const { isLoading: isWithdrawConfirming, isSuccess: isWithdrawConfirmed } = useWaitForTransactionReceipt({
+    hash: withdrawHash,
   })
 
   // Read contract hooks
@@ -263,6 +295,46 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     }
   }
 
+  /**
+   * Deposit MUSD into liquidity pool (admin only)
+   * @param amount Amount of MUSD to deposit (as string, e.g., "50000")
+   */
+  const depositLiquidity = async (amount: string): Promise<void> => {
+    try {
+      const amountInWei = parseUnits(amount, 18)
+
+      depositWrite({
+        address: INSTALLMENT_PROCESSOR_ADDRESS,
+        abi: InstallmentProcessorABI,
+        functionName: 'depositLiquidity',
+        args: [amountInWei],
+      })
+    } catch (error) {
+      console.error('Error depositing liquidity:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Withdraw MUSD from liquidity pool (admin only)
+   * @param amount Amount of MUSD to withdraw (as string, e.g., "10000")
+   */
+  const withdrawLiquidity = async (amount: string): Promise<void> => {
+    try {
+      const amountInWei = parseUnits(amount, 18)
+
+      withdrawWrite({
+        address: INSTALLMENT_PROCESSOR_ADDRESS,
+        abi: InstallmentProcessorABI,
+        functionName: 'withdrawLiquidity',
+        args: [amountInWei],
+      })
+    } catch (error) {
+      console.error('Error withdrawing liquidity:', error)
+      throw error
+    }
+  }
+
   return {
     // Data
     liquidityPool,
@@ -277,11 +349,21 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     makePayment,
     getPurchase,
     isPaymentLate,
+    depositLiquidity,
+    withdrawLiquidity,
     isCreating,
     isPaying,
-    isConfirming: isCreateConfirming || isPayConfirming,
-    isConfirmed: isCreateConfirmed || isPayConfirmed,
+    isDepositing,
+    isWithdrawing,
+    isDepositConfirming,
+    isDepositConfirmed,
+    isWithdrawConfirming,
+    isWithdrawConfirmed,
+    isConfirming: isCreateConfirming || isPayConfirming || isDepositConfirming || isWithdrawConfirming,
+    isConfirmed: isCreateConfirmed || isPayConfirmed || isDepositConfirmed || isWithdrawConfirmed,
     createError: createError as Error | null,
     paymentError: paymentError as Error | null,
+    depositError: depositError as Error | null,
+    withdrawError: withdrawError as Error | null,
   }
 }
