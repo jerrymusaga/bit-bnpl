@@ -493,7 +493,7 @@ export default function MerchantRegisterPage() {
                     <p className="text-sm text-red-500 mt-1">{errors.logoText}</p>
                   )}
                   <p className="text-xs text-[var(--text-muted)] mt-2">
-                    Usually your business initials (e.g., "TH" for Tech Haven)
+                    Usually your business initials (e.g., &quot;TH&quot; for Tech Haven)
                   </p>
                 </div>
 
@@ -543,7 +543,7 @@ export default function MerchantRegisterPage() {
                       <h3 className="text-xl font-bold text-[var(--text-primary)]">
                         {formData.businessName}
                       </h3>
-                      <Badge variant="secondary" size="sm">
+                      <Badge variant="default" size="sm">
                         {formData.category}
                       </Badge>
                     </div>

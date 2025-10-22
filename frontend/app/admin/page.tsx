@@ -21,7 +21,6 @@ import {
   Database,
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
-import { formatEther, parseEther } from 'viem'
 
 // Admin addresses - replace with actual admin addresses
 const ADMIN_ADDRESSES = [
@@ -166,12 +165,10 @@ function MerchantCard({
 
 // Merchants Tab Component
 function MerchantsTab({
-  stats,
   updateMerchantStatus,
   verifiedCount,
   pendingCount
 }: {
-  stats: any
   updateMerchantStatus: (address: string, isVerified: boolean) => void
   verifiedCount: number
   pendingCount: number
@@ -408,14 +405,12 @@ function TransactionsTab() {
 }
 
 // Liquidity Tab Component
-function LiquidityTab({ stats }: { stats: any }) {
+function LiquidityTab({ stats }: { stats: { liquidityPool: string } }) {
   const {
     depositLiquidity,
     withdrawLiquidity,
     isDepositing,
     isWithdrawing,
-    isDepositConfirming,
-    isDepositConfirmed,
     isWithdrawConfirming,
     isWithdrawConfirmed
   } = useInstallmentProcessor()
@@ -444,15 +439,16 @@ function LiquidityTab({ stats }: { stats: any }) {
           setStep('depositing')
           setDepositError(null)
           await depositLiquidity(depositAmount)
-        } catch (error: any) {
+        } catch (error) {
           console.error('Deposit error:', error)
-          setDepositError(error?.shortMessage || error?.message || 'Deposit transaction failed')
+          const err = error as { shortMessage?: string; message?: string }
+          setDepositError(err?.shortMessage || err?.message || 'Deposit transaction failed')
           setStep('idle')
         }
       }
       performDeposit()
     }
-  }, [isApproveSuccess, step, depositAmount])
+  }, [isApproveSuccess, step, depositAmount, depositLiquidity])
 
   // Handle successful deposit
   useEffect(() => {
@@ -464,7 +460,7 @@ function LiquidityTab({ stats }: { stats: any }) {
         setStep('idle')
       }, 1000)
     }
-  }, [isDepositing, step])
+  }, [isDepositing, step, depositAmount])
 
   // Handle successful withdraw
   useEffect(() => {
@@ -509,9 +505,10 @@ function LiquidityTab({ stats }: { stats: any }) {
         functionName: 'approve',
         args: [INSTALLMENT_PROCESSOR_ADDRESS, amountInWei],
       })
-    } catch (error: any) {
+    } catch (error) {
       console.error('Approval error:', error)
-      setDepositError(error?.shortMessage || error?.message || 'Failed to approve MUSD spending')
+      const err = error as { shortMessage?: string; message?: string }
+      setDepositError(err?.shortMessage || err?.message || 'Failed to approve MUSD spending')
       setStep('idle')
     }
   }
@@ -531,9 +528,10 @@ function LiquidityTab({ stats }: { stats: any }) {
       setSavedWithdrawAmount(withdrawAmount)
       await withdrawLiquidity(withdrawAmount)
       // Success message will be shown by useEffect when transaction confirms
-    } catch (error: any) {
+    } catch (error) {
       console.error('Withdraw error:', error)
-      setWithdrawError(error?.shortMessage || error?.message || 'Withdrawal transaction failed')
+      const err = error as { shortMessage?: string; message?: string }
+      setWithdrawError(err?.shortMessage || err?.message || 'Withdrawal transaction failed')
       setSavedWithdrawAmount('')
     }
   }
@@ -718,7 +716,7 @@ function MerchantStatusLoader({
 export default function AdminPage() {
   const { address, isConnected } = useAccount()
   const router = useRouter()
-  const { stats: platformStats, isLoading: statsLoading } = usePlatformStats()
+  const { stats: platformStats } = usePlatformStats()
   const { merchantAddresses } = useAllMerchants() // Load all merchant addresses
 
   const [selectedTab, setSelectedTab] = useState<'overview' | 'merchants' | 'transactions' | 'liquidity'>('overview')
@@ -751,7 +749,7 @@ export default function AdminPage() {
             </div>
             <h1 className="text-3xl font-bold mb-4">Access Denied</h1>
             <p className="text-[var(--text-secondary)] mb-8">
-              You don't have permission to access the admin dashboard.
+              You don&apos;t have permission to access the admin dashboard.
             </p>
             <Button variant="accent" onClick={() => router.push('/')}>
               Go to Home
@@ -817,14 +815,14 @@ export default function AdminPage() {
         <div className="mb-8">
           <div className="flex items-center space-x-2 overflow-x-auto pb-2">
             {[
-              { id: 'overview', label: 'Overview', icon: Activity },
-              { id: 'merchants', label: 'Merchants', icon: Store },
-              { id: 'transactions', label: 'Transactions', icon: TrendingUp },
-              { id: 'liquidity', label: 'Liquidity', icon: Droplet },
+              { id: 'overview' as const, label: 'Overview', icon: Activity },
+              { id: 'merchants' as const, label: 'Merchants', icon: Store },
+              { id: 'transactions' as const, label: 'Transactions', icon: TrendingUp },
+              { id: 'liquidity' as const, label: 'Liquidity', icon: Droplet },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setSelectedTab(tab.id as any)}
+                onClick={() => setSelectedTab(tab.id)}
                 className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-medium whitespace-nowrap transition-all ${
                   selectedTab === tab.id
                     ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
@@ -1023,7 +1021,6 @@ export default function AdminPage() {
         {/* Merchants Tab */}
         {selectedTab === 'merchants' && (
           <MerchantsTab
-            stats={stats}
             updateMerchantStatus={updateMerchantStatus}
             verifiedCount={verifiedCount}
             pendingCount={pendingCount}

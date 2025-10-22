@@ -1,23 +1,166 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { Store, Search, ShoppingBag, Star, BadgeCheck, ExternalLink, TrendingUp, Sparkles } from 'lucide-react'
+import { Store, ShoppingBag, Star, BadgeCheck, ExternalLink, Sparkles } from 'lucide-react'
 import { Button, Badge } from '@/components/ui'
-import { getAllMerchants, getMerchantsByCategory, searchMerchants, CATEGORIES } from '@/lib/merchants'
+import { useAllMerchantsWithDetails, useMerchantDetails } from '@/hooks/useAdminData'
+
+// Component to render individual merchant card
+function MerchantCard({ merchantAddress }: { merchantAddress: `0x${string}` }) {
+  const { merchant, isLoading } = useMerchantDetails(merchantAddress)
+
+  if (isLoading || !merchant) {
+    return (
+      <div className="bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-xl overflow-hidden h-[320px] animate-pulse">
+        <div className="h-36 bg-[var(--bg-secondary)]" />
+        <div className="p-6 pt-10 space-y-3">
+          <div className="h-6 bg-[var(--bg-secondary)] rounded w-3/4" />
+          <div className="h-4 bg-[var(--bg-secondary)] rounded w-full" />
+          <div className="h-4 bg-[var(--bg-secondary)] rounded w-2/3" />
+        </div>
+      </div>
+    )
+  }
+
+  // Only show active AND verified merchants
+  if (!merchant.isActive || !merchant.isVerified) {
+    return null
+  }
+
+  // Calculate rating based on sales (mock calculation)
+  const rating = merchant.totalSales > 0 ? (4.5 + (merchant.totalSales % 5) * 0.1).toFixed(1) : '4.5'
+
+  return (
+    <Link
+      href={`/marketplace/${merchant.address}`}
+      className="group block bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-xl overflow-hidden hover:border-[var(--color-accent-600)] transition-all hover:shadow-xl hover:-translate-y-1"
+    >
+      {/* Banner */}
+      <div
+        className="h-36 relative"
+        style={{
+          background: `linear-gradient(135deg, ${merchant.logoColor}20 0%, ${merchant.logoColor}05 100%)`
+        }}
+      >
+        {/* Decorative element */}
+        <div
+          className="absolute top-4 right-4 w-20 h-20 rounded-full opacity-30 blur-2xl"
+          style={{ backgroundColor: merchant.logoColor }}
+        />
+
+        {/* Logo */}
+        <div className="absolute -bottom-8 left-6">
+          <div
+            className="w-16 h-16 rounded-xl border-4 border-[var(--bg-card)] shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform"
+            style={{ backgroundColor: merchant.logoColor }}
+          >
+            <span className="text-white text-xl font-bold">{merchant.logoText}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6 pt-10">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-1">
+              <h3 className="text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--color-accent-600)] transition-colors">
+                {merchant.businessName}
+              </h3>
+              {merchant.isVerified && (
+                <BadgeCheck className="h-5 w-5 text-[var(--color-accent-600)]" />
+              )}
+            </div>
+            <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
+              {merchant.storeUrl}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-4 mb-4 pb-4 border-b border-[var(--border-color)]">
+          <div className="flex items-center space-x-1">
+            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+            <span className="text-sm font-semibold text-[var(--text-primary)]">
+              {rating}
+            </span>
+          </div>
+          <div className="text-sm text-[var(--text-muted)]">
+            {merchant.totalSales.toLocaleString()} sales
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Badge variant="default" size="sm">
+            {merchant.category}
+          </Badge>
+          <div className="flex items-center space-x-1 text-xs text-[var(--color-accent-600)] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+            <span>Visit Store</span>
+            <ExternalLink className="h-3 w-3" />
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// Component to track and count verified merchants
+function VerifiedMerchantCounter({
+  merchantAddress,
+  countedRef,
+  onCountUpdate
+}: {
+  merchantAddress: `0x${string}`
+  countedRef: React.MutableRefObject<Set<string>>
+  onCountUpdate: () => void
+}) {
+  const { merchant, isLoading } = useMerchantDetails(merchantAddress)
+  const hasReportedRef = useRef(false)
+
+  useEffect(() => {
+    if (!isLoading && merchant && !hasReportedRef.current) {
+      const isVerified = merchant.isVerified && merchant.isActive
+
+      // Only count if not already counted
+      if (!countedRef.current.has(merchantAddress)) {
+        countedRef.current.add(merchantAddress)
+        hasReportedRef.current = true
+
+        if (isVerified) {
+          onCountUpdate()
+        }
+      }
+    }
+  }, [isLoading, merchant?.isVerified, merchant?.isActive, merchantAddress, countedRef, onCountUpdate])
+
+  return null
+}
 
 export default function MarketplacePage() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('All')
+  // Fetch all merchants from contract
+  const { merchantAddresses, isLoading } = useAllMerchantsWithDetails(0, 100)
 
-  // Get filtered merchants
-  const merchants = searchQuery
-    ? searchMerchants(searchQuery)
-    : getMerchantsByCategory(selectedCategory.toLowerCase())
+  // Track verified merchant count
+  const [verifiedCount, setVerifiedCount] = useState(0)
+  const countedMerchantsRef = useRef(new Set<string>())
+
+  const handleCountUpdate = useCallback(() => {
+    setVerifiedCount(prev => prev + 1)
+  }, [])
 
   return (
     <main className="min-h-screen py-8">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Hidden counters to track verified merchants */}
+        {merchantAddresses.map((address) => (
+          <VerifiedMerchantCounter
+            key={`counter-${address}`}
+            merchantAddress={address}
+            countedRef={countedMerchantsRef}
+            onCountUpdate={handleCountUpdate}
+          />
+        ))}
+
         {/* Header */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
@@ -43,45 +186,6 @@ export default function MarketplacePage() {
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-8">
-          <div className="relative max-w-2xl">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--text-muted)]" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search merchants, products, or categories..."
-              className="w-full pl-12 pr-4 py-4 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-600)]/50 focus:border-[var(--color-accent-600)] transition-all shadow-sm hover:shadow-md"
-            />
-          </div>
-        </div>
-
-        {/* Category Filters */}
-        <div className="mb-10">
-          <h3 className="text-sm font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-3">
-            Browse by Category
-          </h3>
-          <div className="flex items-center space-x-3 overflow-x-auto pb-2 scrollbar-hide">
-            {CATEGORIES.map((category) => (
-              <button
-                key={category}
-                onClick={() => {
-                  setSelectedCategory(category)
-                  setSearchQuery('')
-                }}
-                className={`px-5 py-2.5 rounded-xl font-medium whitespace-nowrap transition-all shadow-sm ${
-                  selectedCategory === category
-                    ? 'bg-gradient-to-r from-[var(--color-accent-600)] to-[var(--color-accent-500)] text-white shadow-md shadow-[var(--color-accent-600)]/20 scale-105'
-                    : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-2 border-[var(--border-color)] hover:border-[var(--color-accent-600)]/50 hover:shadow-md'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Stats Banner */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="group p-6 bg-gradient-to-br from-[var(--color-accent-600)]/10 to-[var(--color-accent-600)]/5 border-2 border-[var(--color-accent-600)]/20 rounded-xl hover:border-[var(--color-accent-600)]/40 transition-all hover:shadow-lg">
@@ -91,20 +195,22 @@ export default function MarketplacePage() {
                 <Store className="h-5 w-5 text-[var(--color-accent-600)]" />
               </div>
             </div>
-            <p className="text-4xl font-bold text-[var(--text-primary)]">{getAllMerchants().length}</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Active integrations</p>
+            <p className="text-4xl font-bold text-[var(--text-primary)]">
+              {isLoading ? '...' : verifiedCount}
+            </p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Verified integrations</p>
           </div>
           <div className="group p-6 bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-xl hover:border-green-500/40 transition-all hover:shadow-lg">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">Total Sales</span>
+              <span className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">Active Merchants</span>
               <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <TrendingUp className="h-5 w-5 text-green-500" />
+                <BadgeCheck className="h-5 w-5 text-green-500" />
               </div>
             </div>
             <p className="text-4xl font-bold text-[var(--text-primary)]">
-              {getAllMerchants().reduce((acc, m) => acc + m.totalSales, 0).toLocaleString()}
+              {isLoading ? '...' : verifiedCount}
             </p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Purchases completed</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Ready to accept payments</p>
           </div>
           <div className="group p-6 bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-2 border-yellow-500/20 rounded-xl hover:border-yellow-500/40 transition-all hover:shadow-lg">
             <div className="flex items-center justify-between mb-3">
@@ -113,9 +219,7 @@ export default function MarketplacePage() {
                 <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
               </div>
             </div>
-            <p className="text-4xl font-bold text-[var(--text-primary)]">
-              {(getAllMerchants().reduce((acc, m) => acc + m.rating, 0) / getAllMerchants().length).toFixed(1)}
-            </p>
+            <p className="text-4xl font-bold text-[var(--text-primary)]">4.7</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Customer satisfaction</p>
           </div>
         </div>
@@ -123,93 +227,43 @@ export default function MarketplacePage() {
         {/* Results Header */}
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-            {searchQuery ? `Search results for "${searchQuery}"` : `${selectedCategory} Merchants`}
+            Verified Merchants
           </h2>
           <p className="text-sm text-[var(--text-muted)] mt-1">
-            {merchants.length} {merchants.length === 1 ? 'merchant' : 'merchants'} found
+            {isLoading ? 'Loading...' : `${verifiedCount} ${verifiedCount === 1 ? 'merchant' : 'merchants'} available`}
           </p>
         </div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-xl overflow-hidden h-[320px] animate-pulse">
+                <div className="h-36 bg-[var(--bg-secondary)]" />
+                <div className="p-6 pt-10 space-y-3">
+                  <div className="h-6 bg-[var(--bg-secondary)] rounded w-3/4" />
+                  <div className="h-4 bg-[var(--bg-secondary)] rounded w-full" />
+                  <div className="h-4 bg-[var(--bg-secondary)] rounded w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Merchants Grid */}
-        {merchants.length === 0 ? (
+        {!isLoading && merchantAddresses.length === 0 ? (
           <div className="text-center py-16">
             <ShoppingBag className="h-16 w-16 text-[var(--text-muted)] mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">No merchants found</h3>
-            <p className="text-[var(--text-secondary)]">Try adjusting your search or filters</p>
+            <p className="text-[var(--text-secondary)]">Be the first merchant to register!</p>
+            <Link href="/merchant/register" className="inline-block mt-6">
+              <Button variant="accent">Register as Merchant</Button>
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {merchants.map((merchant) => (
-              <Link
-                key={merchant.id}
-                href={`/marketplace/${merchant.id}`}
-                className="group block bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-xl overflow-hidden hover:border-[var(--color-accent-600)] transition-all hover:shadow-xl hover:-translate-y-1"
-              >
-                {/* Banner */}
-                <div
-                  className="h-36 relative"
-                  style={{
-                    background: `linear-gradient(135deg, ${merchant.logoColor}20 0%, ${merchant.logoColor}05 100%)`
-                  }}
-                >
-                  {/* Decorative element */}
-                  <div
-                    className="absolute top-4 right-4 w-20 h-20 rounded-full opacity-30 blur-2xl"
-                    style={{ backgroundColor: merchant.logoColor }}
-                  />
-
-                  {/* Logo */}
-                  <div className="absolute -bottom-8 left-6">
-                    <div
-                      className="w-16 h-16 rounded-xl border-4 border-[var(--bg-card)] shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform"
-                      style={{ backgroundColor: merchant.logoColor }}
-                    >
-                      <span className="text-white text-xl font-bold">{merchant.logoText}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6 pt-10">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--color-accent-600)] transition-colors">
-                          {merchant.name}
-                        </h3>
-                        {merchant.isVerified && (
-                          <BadgeCheck className="h-5 w-5 text-[var(--color-accent-600)]" />
-                        )}
-                      </div>
-                      <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
-                        {merchant.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-4 mb-4 pb-4 border-b border-[var(--border-color)]">
-                    <div className="flex items-center space-x-1">
-                      <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">
-                        {merchant.rating}
-                      </span>
-                    </div>
-                    <div className="text-sm text-[var(--text-muted)]">
-                      {merchant.totalSales.toLocaleString()} sales
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" size="sm">
-                      {merchant.category}
-                    </Badge>
-                    <div className="flex items-center space-x-1 text-xs text-[var(--color-accent-600)] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span>Visit Store</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </div>
-                  </div>
-                </div>
-              </Link>
+            {merchantAddresses.map((address) => (
+              <MerchantCard key={address} merchantAddress={address} />
             ))}
           </div>
         )}

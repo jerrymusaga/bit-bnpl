@@ -22,7 +22,7 @@ import { useState, useEffect } from 'react'
 export default function MerchantDashboardPage() {
   const { address, isConnected } = useAccount()
   const router = useRouter()
-  const { merchantData, isActive, calculatePlatformFee, calculateMerchantAmount } = useMerchantRegistry()
+  const { merchantData, calculatePlatformFee, calculateMerchantAmount } = useMerchantRegistry()
 
   const [copiedCode, setCopiedCode] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -120,7 +120,7 @@ export default function MerchantDashboardPage() {
                       </>
                     )}
                   </Badge>
-                  <Badge variant="secondary" size="sm">
+                  <Badge variant="default" size="sm">
                     {merchantData.category}
                   </Badge>
                 </div>
@@ -241,7 +241,7 @@ export default function MerchantDashboardPage() {
                     <Code className="h-5 w-5 inline mr-2" />
                     Integration Code
                   </CardTitle>
-                  <Badge variant={merchantData.isVerified ? 'success' : 'secondary'} size="sm">
+                  <Badge variant={merchantData.isVerified ? 'success' : 'warning'} size="sm">
                     {merchantData.isVerified ? 'Ready to use' : 'Pending verification'}
                   </Badge>
                 </div>

@@ -1,16 +1,39 @@
 'use client'
 
-import { use } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Star, BadgeCheck, ExternalLink, ShoppingBag, Calendar, Shield } from 'lucide-react'
+import { ArrowLeft, Star, BadgeCheck, ExternalLink, ShoppingBag, Calendar, Shield, DollarSign } from 'lucide-react'
 import { Button, Badge } from '@/components/ui'
-import { getMerchantById } from '@/lib/merchants'
+import { useMerchantDetails } from '@/hooks/useAdminData'
 
-export default function MerchantStorePage({ params }: { params: Promise<{ merchantId: string }> }) {
-  const resolvedParams = use(params)
-  const merchant = getMerchantById(resolvedParams.merchantId)
+export default function MerchantStorePage({ params }: { params: { merchantId: string } }) {
+  const merchantAddress = params.merchantId as `0x${string}`
 
-  if (!merchant) {
+  // Fetch merchant data from contract
+  const { merchant, isLoading } = useMerchantDetails(merchantAddress)
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="animate-pulse space-y-8">
+              <div className="h-64 bg-[var(--bg-secondary)] rounded-2xl" />
+              <div className="flex space-x-8">
+                <div className="w-28 h-28 bg-[var(--bg-secondary)] rounded-2xl" />
+                <div className="flex-1 space-y-4">
+                  <div className="h-8 bg-[var(--bg-secondary)] rounded w-1/2" />
+                  <div className="h-4 bg-[var(--bg-secondary)] rounded w-3/4" />
+                  <div className="h-4 bg-[var(--bg-secondary)] rounded w-1/2" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (!merchant || !merchant.isActive) {
     return (
       <main className="min-h-screen py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,7 +41,7 @@ export default function MerchantStorePage({ params }: { params: Promise<{ mercha
             <ShoppingBag className="h-16 w-16 text-[var(--color-warning-500)] mx-auto mb-4" />
             <h1 className="text-3xl font-bold mb-4">Merchant Not Found</h1>
             <p className="text-[var(--text-secondary)] mb-8">
-              The merchant you're looking for doesn't exist or has been removed.
+              The merchant you&apos;re looking for doesn&apos;t exist or has been removed.
             </p>
             <Link href="/marketplace">
               <Button variant="accent">Back to Marketplace</Button>
@@ -29,9 +52,32 @@ export default function MerchantStorePage({ params }: { params: Promise<{ mercha
     )
   }
 
+  // Redirect to marketplace if merchant is not verified
+  if (!merchant.isVerified) {
+    return (
+      <main className="min-h-screen py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <BadgeCheck className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold mb-4">Merchant Pending Verification</h1>
+            <p className="text-[var(--text-secondary)] mb-8">
+              This merchant is awaiting admin verification. Only verified merchants can be listed in the marketplace.
+            </p>
+            <Link href="/marketplace">
+              <Button variant="accent">Browse Verified Merchants</Button>
+            </Link>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
   const handleVisitStore = () => {
     window.open(merchant.storeUrl, '_blank', 'noopener,noreferrer')
   }
+
+  // Calculate rating based on sales (mock calculation for now)
+  const rating = merchant.totalSales > 0 ? (4.5 + (merchant.totalSales % 5) * 0.1).toFixed(1) : '4.5'
 
   return (
     <main className="min-h-screen py-8">
@@ -77,15 +123,24 @@ export default function MerchantStorePage({ params }: { params: Promise<{ mercha
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-3">
                 <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
-                  {merchant.name}
+                  {merchant.businessName}
                 </h1>
               </div>
-              <p className="text-lg text-[var(--text-secondary)] mb-4">{merchant.description}</p>
+              <p className="text-lg text-[var(--text-secondary)] mb-4">
+                <a
+                  href={merchant.storeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-[var(--color-accent-600)] transition-colors"
+                >
+                  {merchant.storeUrl}
+                </a>
+              </p>
 
               <div className="flex flex-wrap items-center gap-4 mb-6">
                 <div className="flex items-center space-x-1">
                   <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <span className="font-semibold text-[var(--text-primary)]">{merchant.rating}</span>
+                  <span className="font-semibold text-[var(--text-primary)]">{rating}</span>
                   <span className="text-sm text-[var(--text-muted)]">rating</span>
                 </div>
                 <div className="text-sm text-[var(--text-muted)]">•</div>
@@ -93,7 +148,11 @@ export default function MerchantStorePage({ params }: { params: Promise<{ mercha
                   <span className="font-semibold">{merchant.totalSales.toLocaleString()}</span> total sales
                 </div>
                 <div className="text-sm text-[var(--text-muted)]">•</div>
-                <Badge variant="secondary">{merchant.category}</Badge>
+                <div className="text-sm text-[var(--text-secondary)]">
+                  <span className="font-semibold">{parseFloat(merchant.totalVolume).toFixed(2)} MUSD</span> volume
+                </div>
+                <div className="text-sm text-[var(--text-muted)]">•</div>
+                <Badge variant="default">{merchant.category}</Badge>
               </div>
 
               <Button onClick={handleVisitStore} variant="accent" size="lg" className="group">
@@ -123,45 +182,53 @@ export default function MerchantStorePage({ params }: { params: Promise<{ mercha
               <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
                 <Calendar className="h-5 w-5 text-blue-500" />
               </div>
-              <h3 className="font-semibold text-[var(--text-primary)]">Integrated</h3>
+              <h3 className="font-semibold text-[var(--text-primary)]">Registered</h3>
             </div>
             <p className="text-sm text-[var(--text-secondary)]">
-              {new Date(merchant.integrationDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              {merchant.registeredAt}
             </p>
           </div>
 
           <div className="p-6 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
             <div className="flex items-center space-x-3 mb-3">
               <div className="w-10 h-10 bg-[var(--color-accent-600)]/10 rounded-lg flex items-center justify-center">
-                <ShoppingBag className="h-5 w-5 text-[var(--color-accent-600)]" />
+                <DollarSign className="h-5 w-5 text-[var(--color-accent-600)]" />
               </div>
-              <h3 className="font-semibold text-[var(--text-primary)]">Payment Options</h3>
+              <h3 className="font-semibold text-[var(--text-primary)]">Platform Fee</h3>
             </div>
             <p className="text-sm text-[var(--text-secondary)]">
-              Pay in full or choose 4, 6, or 8 installments
+              1% transaction fee (99% to merchant)
             </p>
           </div>
         </div>
 
-        {/* What They Sell */}
+        {/* Merchant Stats */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">What They Sell</h2>
-          <div className="flex flex-wrap gap-3">
-            {merchant.features.map((feature) => (
-              <div
-                key={feature}
-                className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg text-sm font-medium text-[var(--text-primary)]"
-              >
-                {feature}
-              </div>
-            ))}
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Merchant Statistics</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
+              <div className="text-sm text-[var(--text-muted)] mb-1">Total Sales</div>
+              <div className="text-2xl font-bold text-[var(--text-primary)]">{merchant.totalSales}</div>
+            </div>
+            <div className="p-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
+              <div className="text-sm text-[var(--text-muted)] mb-1">Total Volume</div>
+              <div className="text-2xl font-bold text-green-500">{parseFloat(merchant.totalVolume).toFixed(2)} MUSD</div>
+            </div>
+            <div className="p-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
+              <div className="text-sm text-[var(--text-muted)] mb-1">Rating</div>
+              <div className="text-2xl font-bold text-yellow-500">{rating} ⭐</div>
+            </div>
+            <div className="p-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
+              <div className="text-sm text-[var(--text-muted)] mb-1">Last Transaction</div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">{merchant.lastTransactionAt}</div>
+            </div>
           </div>
         </div>
 
         {/* How It Works */}
         <div className="p-8 bg-gradient-to-r from-[var(--color-accent-600)]/10 to-[var(--color-accent-600)]/5 border border-[var(--color-accent-600)]/20 rounded-2xl">
           <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6 text-center">
-            How to Shop with BitBNPL at {merchant.name}
+            How to Shop with BitBNPL at {merchant.businessName}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
@@ -171,7 +238,7 @@ export default function MerchantStorePage({ params }: { params: Promise<{ mercha
               </div>
               <h3 className="font-semibold text-[var(--text-primary)] mb-2">Visit Store</h3>
               <p className="text-sm text-[var(--text-secondary)]">
-                Click "Visit Store" to browse their products
+                Click &quot;Visit Store&quot; to browse their products
               </p>
             </div>
 
@@ -191,7 +258,7 @@ export default function MerchantStorePage({ params }: { params: Promise<{ mercha
               </div>
               <h3 className="font-semibold text-[var(--text-primary)] mb-2">Pay with BitBNPL</h3>
               <p className="text-sm text-[var(--text-secondary)]">
-                Select "Pay with BitBNPL" at checkout
+                Select &quot;Pay with BitBNPL&quot; at checkout
               </p>
             </div>
 
@@ -201,14 +268,14 @@ export default function MerchantStorePage({ params }: { params: Promise<{ mercha
               </div>
               <h3 className="font-semibold text-[var(--text-primary)] mb-2">Pay in Installments</h3>
               <p className="text-sm text-[var(--text-secondary)]">
-                Choose your plan and complete checkout
+                Choose your plan (1, 4, 6, or 8 payments)
               </p>
             </div>
           </div>
 
           <div className="mt-8 text-center">
             <Button onClick={handleVisitStore} variant="accent" size="lg" className="group">
-              Visit {merchant.name}
+              Visit {merchant.businessName}
               <ExternalLink className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>

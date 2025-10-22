@@ -373,7 +373,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="/dashboard">
-                  <Button variant="secondary" size="lg" className="group">
+                  <Button variant="outline" size="lg" className="group">
                     <span className="flex items-center space-x-2">
                       <span>View Dashboard</span>
                       <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />

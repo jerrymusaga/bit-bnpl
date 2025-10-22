@@ -41,7 +41,7 @@ export function ActiveInstallments() {
         })
       )
 
-      setPurchases(purchaseDetails.filter(Boolean) as any[])
+      setPurchases(purchaseDetails.filter(Boolean) as Array<Purchase & { purchaseId: number; isLate: boolean }>)
       setLoadingPurchases(false)
     }
 
@@ -252,7 +252,7 @@ export function ActiveInstallments() {
 
                 {/* Action Button */}
                 <Button
-                  variant={isOverdue ? 'error' : 'accent'}
+                  variant={isOverdue ? 'danger' : 'accent'}
                   fullWidth
                   onClick={() => handleMakePayment(purchase.purchaseId)}
                   disabled={isPaying || isConfirming}

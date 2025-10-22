@@ -6,7 +6,7 @@ import MerchantRegistryABI from '@/lib/abis/MerchantRegistry.json'
 const MERCHANT_REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_MERCHANT_REGISTRY_ADDRESS as `0x${string}`) || '0x6b3eDF2bDEe7D5B5aCbf849896A1d90a8fB98927'
 
 // Use full ABI from compiled contract
-const MERCHANT_REGISTRY_ABI = MerchantRegistryABI as const
+const MERCHANT_REGISTRY_ABI = MerchantRegistryABI
 
 export interface MerchantData {
   businessName: string
@@ -40,7 +40,7 @@ export function useAllMerchants() {
     functionName: 'getMerchants',
     args: [0n, totalMerchants || 100n], // Fetch all merchants (max 100 for now)
     query: {
-      enabled: !!totalMerchants && totalMerchants > 0n,
+      enabled: !!totalMerchants && typeof totalMerchants === 'bigint' && totalMerchants > 0n,
     },
   })
 

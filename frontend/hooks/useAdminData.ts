@@ -125,6 +125,19 @@ export function useAllMerchants(offset: number = 0, limit: number = 100) {
 }
 
 /**
+ * Hook to fetch all merchants with full details
+ * This is optimized for marketplace display
+ */
+export function useAllMerchantsWithDetails(offset: number = 0, limit: number = 100) {
+  const { merchantAddresses, isLoading: addressesLoading } = useAllMerchants(offset, limit)
+
+  return {
+    merchantAddresses,
+    isLoading: addressesLoading,
+  }
+}
+
+/**
  * Hook to fetch detailed data for a specific merchant
  */
 export function useMerchantDetails(merchantAddress: `0x${string}` | undefined) {

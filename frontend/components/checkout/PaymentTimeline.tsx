@@ -1,6 +1,6 @@
 'use client'
 
-import { Calendar, CheckCircle2, Circle } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 
 interface PaymentTimelineProps {
   totalPayments: number
