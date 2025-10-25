@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import { useMerchantRegistry } from '@/hooks/useMerchantRegistry'
 import { useMezoContracts } from '@/hooks/useMezoContracts'
+import { MerchantTransactions } from '@/components/merchant/MerchantTransactions'
 import {
   DollarSign,
   ShoppingCart,
@@ -454,6 +455,9 @@ import { BitBNPLButton } from '@bitbnpl/react'
                 </div>
               </CardContent>
             </Card>
+
+            {/* Transaction History */}
+            <MerchantTransactions />
           </div>
 
           {/* Right Column - Info */}
