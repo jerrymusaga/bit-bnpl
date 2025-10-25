@@ -175,8 +175,6 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
             installments == 1 || installments == 4 || installments == 6 || installments == 8,
             "Invalid installments"
         );
-        require(amount <= userBorrowingCapacity, "Insufficient borrowing capacity");
-        require(amount <= liquidityPool, "Insufficient platform liquidity");
 
         // Verify merchant is registered and active
         require(
@@ -193,6 +191,40 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
         uint256 platformFee = merchantRegistry.calculatePlatformFee(amount);
         uint256 merchantAmount = amount - platformFee;
 
+        bool isFullPayment = installments == 1;
+
+        if (isFullPayment) {
+            // OPTION 1: Pay in Full - No collateral needed, user pays directly
+            // User must have enough MUSD in wallet
+            require(MUSD.balanceOf(msg.sender) >= totalWithInterest, "Insufficient MUSD balance");
+
+            // User pays merchant directly (minus platform fee)
+            require(
+                MUSD.transferFrom(msg.sender, merchant, merchantAmount),
+                "Payment to merchant failed"
+            );
+
+            // User pays platform fee
+            require(
+                MUSD.transferFrom(msg.sender, platformFeeWallet, platformFee),
+                "Platform fee payment failed"
+            );
+        } else {
+            // OPTION 2: Pay in Installments - Requires BTC collateral
+            // User must have borrowing capacity (proves they have BTC collateral locked)
+            require(amount <= userBorrowingCapacity, "Insufficient borrowing capacity - lock BTC collateral first");
+            require(amount <= liquidityPool, "Insufficient platform liquidity");
+
+            // Update liquidity pool BEFORE transfers
+            liquidityPool -= amount;
+
+            // PLATFORM pays MERCHANT instantly from liquidity pool (minus platform fee)
+            require(MUSD.transfer(merchant, merchantAmount), "Merchant payment failed");
+
+            // Transfer platform fee to platform wallet
+            require(MUSD.transfer(platformFeeWallet, platformFee), "Platform fee transfer failed");
+        }
+
         // Create purchase record BEFORE external calls (CEI pattern)
         uint256 purchaseId = userPurchaseCount[msg.sender];
         userPurchases[msg.sender][purchaseId] = Purchase({
@@ -202,11 +234,11 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
             totalWithInterest: totalWithInterest,
             amountPerPayment: amountPerPayment,
             paymentsTotal: installments,
-            paymentsRemaining: installments,
-            nextPaymentDue: block.timestamp + PAYMENT_INTERVAL,
-            collateralLocked: amount,
+            paymentsRemaining: isFullPayment ? 0 : installments, // Full payment = 0 remaining
+            nextPaymentDue: isFullPayment ? 0 : block.timestamp + PAYMENT_INTERVAL,
+            collateralLocked: isFullPayment ? 0 : amount,
             lateFees: 0,
-            isActive: true
+            isActive: !isFullPayment // Full payment = not active (already complete)
         });
 
         userPurchaseCount[msg.sender]++;
@@ -220,19 +252,15 @@ contract InstallmentProcessor is Ownable, ReentrancyGuard {
         totalVolumeProcessed += amount;
         totalFeesCollected += platformFee;
 
-        // Update liquidity pool BEFORE transfers
-        liquidityPool -= amount;
-
-        // PLATFORM pays MERCHANT instantly from liquidity pool (minus platform fee)
-        require(MUSD.transfer(merchant, merchantAmount), "Merchant payment failed");
-
-        // Transfer platform fee to platform wallet
-        require(MUSD.transfer(platformFeeWallet, platformFee), "Platform fee transfer failed");
-
         // Record transaction in merchant registry
         merchantRegistry.recordTransaction(merchant, amount);
 
         emit PurchaseCreated(msg.sender, purchaseId, merchant, amount, installments);
+
+        // If full payment, emit completion immediately
+        if (isFullPayment) {
+            emit PurchaseCompleted(msg.sender, purchaseId);
+        }
 
         return purchaseId;
     }

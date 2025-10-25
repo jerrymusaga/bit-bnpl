@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import { useInstallmentProcessor } from '@/hooks/useInstallmentProcessor'
 import { AlertCircle, Clock, CheckCircle2, Calendar, TrendingUp, Loader2 } from 'lucide-react'
@@ -22,31 +22,67 @@ export function ActiveInstallments() {
   const [purchases, setPurchases] = useState<(Purchase & { purchaseId: number; isLate: boolean })[]>([])
   const [loadingPurchases, setLoadingPurchases] = useState(true)
   const [payingPurchaseId, setPayingPurchaseId] = useState<number | null>(null)
+  const isLoadingRef = useRef(false)
+  const lastActivePurchasesRef = useRef<number[]>([])
+  const hasLoadedRef = useRef(false)
 
   // Load purchase details when activePurchases changes
   useEffect(() => {
     const loadPurchaseDetails = async () => {
-      if (activePurchases.length === 0) {
-        setPurchases([])
-        setLoadingPurchases(false)
+      // Prevent multiple simultaneous loads
+      if (isLoadingRef.current) {
+        console.log('⏭️ Already loading, skipping...')
         return
       }
 
-      setLoadingPurchases(true)
-      const purchaseDetails = await Promise.all(
-        activePurchases.map(async (id) => {
-          const purchase = await getPurchase(id)
-          const late = await isPaymentLate(id)
-          return purchase ? { ...purchase, purchaseId: id, isLate: late } : null
-        })
-      )
+      // Check if purchase IDs actually changed
+      const purchaseIdsChanged = JSON.stringify(activePurchases) !== JSON.stringify(lastActivePurchasesRef.current)
+      if (hasLoadedRef.current && !purchaseIdsChanged) {
+        console.log('⏭️ Purchase IDs unchanged, skipping...')
+        return
+      }
 
-      setPurchases(purchaseDetails.filter(Boolean) as Array<Purchase & { purchaseId: number; isLate: boolean }>)
-      setLoadingPurchases(false)
+      console.log('📦 Active purchases from contract:', activePurchases)
+
+      if (activePurchases.length === 0) {
+        console.log('ℹ️ No active purchases found')
+        setPurchases([])
+        setLoadingPurchases(false)
+        hasLoadedRef.current = true
+        lastActivePurchasesRef.current = []
+        return
+      }
+
+      console.log(`🔍 Loading details for ${activePurchases.length} purchase(s)...`)
+      isLoadingRef.current = true
+      setLoadingPurchases(true)
+      lastActivePurchasesRef.current = activePurchases
+
+      try {
+        const purchaseDetails = await Promise.all(
+          activePurchases.map(async (id) => {
+            const purchase = await getPurchase(id)
+            const late = await isPaymentLate(id)
+            console.log(`Purchase #${id}:`, purchase)
+            return purchase ? { ...purchase, purchaseId: id, isLate: late } : null
+          })
+        )
+
+        const filteredPurchases = purchaseDetails.filter(Boolean) as Array<Purchase & { purchaseId: number; isLate: boolean }>
+        console.log('✅ Loaded purchases:', filteredPurchases)
+        setPurchases(filteredPurchases)
+        hasLoadedRef.current = true
+      } catch (error) {
+        console.error('❌ Error loading purchases:', error)
+      } finally {
+        setLoadingPurchases(false)
+        isLoadingRef.current = false
+      }
     }
 
     loadPurchaseDetails()
-  }, [activePurchases, getPurchase, isPaymentLate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePurchases])
 
   // Handle make payment
   const handleMakePayment = async (purchaseId: number) => {

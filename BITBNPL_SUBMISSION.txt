@@ -1,0 +1,403 @@
+BITBNPL - BITCOIN BUY NOW PAY LATER
+
+=== OVERVIEW ===
+
+BitBNPL is a decentralized Buy Now Pay Later platform that allows users to purchase goods using Bitcoin as collateral without selling their BTC. Users maintain Bitcoin exposure while shopping, merchants receive instant settlement, and the platform operates on Mezo Protocol's Bitcoin-backed MUSD stablecoin.
+
+Key Innovation: Users keep their Bitcoin and benefit from price appreciation while making purchases in installments at low interest rates (0.5-1.5% vs 20%+ traditional BNPL).
+
+
+=== CORE TECHNOLOGY ===
+
+Three-Layer Architecture:
+
+1. MEZO PROTOCOL (Bitcoin Layer)
+   - BorrowerOperations: Users deposit BTC and borrow MUSD
+   - TroveManager: Manages collateralized debt positions (Troves)
+   - PriceFeed: Real-time BTC price oracle
+   - Up to 90% LTV, 1% APR on MUSD
+
+2. BITBNPL CONTRACTS (Payment Layer)
+   - MerchantRegistry: Merchant verification and management
+   - InstallmentProcessor: Handles BNPL logic, instant settlement, bi-weekly payments
+   - Platform liquidity pool pays merchants instantly
+
+3. FRONTEND (Next.js Application)
+   - Dashboard: BTC collateral and MUSD management
+   - Marketplace: Browse verified merchants
+   - Checkout: Select installment plans (1, 4, 6, or 8 payments)
+   - Admin Panel: Merchant verification and platform management
+
+
+=== HOW IT WORKS ===
+
+USER JOURNEY:
+
+Step 1: Onboarding (with MoonPay - planned)
+- User buys BTC with credit card via MoonPay onramp widget
+- Or connects existing wallet with BTC
+
+Step 2: Collateralization
+- User deposits BTC to Mezo Protocol (e.g., 0.01 BTC = $1,000)
+- Creates "Trove" (collateralized debt position)
+- Borrows MUSD up to 90% LTV (e.g., 900 MUSD)
+- BTC stays locked, user receives MUSD
+
+Step 3: Shopping
+- User browses verified merchants in marketplace
+- Clicks "Pay with BitBNPL" button on merchant site
+- Redirected to BitBNPL checkout with product pre-filled
+
+Step 4: Checkout
+- Merchant verification check (only verified merchants accepted)
+- MUSD balance check (redirect to dashboard if insufficient)
+- Select installment plan:
+  * 1 payment: 0% interest
+  * 4 payments: 0.5% interest
+  * 6 payments: 1.0% interest
+  * 8 payments: 1.5% interest
+- Review payment schedule (bi-weekly payments)
+
+Step 5: Transaction Execution
+- Platform pays merchant INSTANTLY from liquidity pool (99% of amount)
+- Platform keeps 1% fee
+- User owes platform amount + interest
+- Merchant ships product immediately
+
+Step 6: Installment Payments
+- User makes bi-weekly payments from MUSD balance
+- 7-day grace period, then 1% late fee
+- Payments tracked in dashboard
+- Can borrow more MUSD anytime if needed
+
+Step 7: Completion
+- All installments paid
+- User repays MUSD to Mezo (optional, when ready)
+- Unlocks BTC (now potentially appreciated!)
+- Net benefit: Kept Bitcoin exposure during purchase
+
+Step 8: Offramp (MoonPay - planned)
+- User sells BTC for fiat via MoonPay widget
+- USD deposited to bank account
+
+
+=== MERCHANT INTEGRATION ===
+
+Merchant Setup:
+1. Register at /merchant/register with business details
+2. Admin verifies merchant (KYC/business validation)
+3. Merchant receives unique integration code
+4. Adds BitBNPL button to website
+
+Integration Methods:
+
+Simple Link (Available Now):
+<a href="https://bitbnpl.com/checkout?merchant=0xAddress&amount=299.99&itemName=Product&itemId=123&itemImage=🛍️">
+  Pay with BitBNPL 🟠
+</a>
+
+JavaScript Widget (Coming Soon):
+<script src="https://bitbnpl.com/widget.js" data-merchant="0xAddress"></script>
+<button class="bitbnpl-button" data-amount="299.99" data-item-name="Product">Pay with BitBNPL</button>
+
+React SDK (Coming Soon):
+<BitBNPLButton merchantAddress="0xAddress" amount={299.99} itemName="Product" />
+
+Security: Integration only works for verified merchants. Checkout page validates merchant status on-chain before allowing purchase.
+
+
+=== SMART CONTRACTS ===
+
+MerchantRegistry.sol:
+- registerMerchant(): Anyone can register
+- verifyMerchant(): Admin approves (only owner)
+- isActiveMerchant(): Checks if merchant can accept payments
+- recordTransaction(): Updates merchant stats (sales, volume)
+- Stores: business name, store URL, category, logo, verification status
+
+InstallmentProcessor.sol:
+- createPurchase(): Creates BNPL purchase, pays merchant instantly
+- makePayment(): User makes bi-weekly payment
+- isPaymentLate(): Checks if payment overdue (>7 days)
+- depositLiquidity(): Admin funds platform pool
+- withdrawLiquidity(): Admin removes excess funds
+- Platform fronts payment to merchant from liquidity pool
+- User pays back platform over time
+
+Payment Calculation Example:
+Purchase: $1,200 MacBook, 6 payments (1% interest)
+- Merchant receives: $1,188 (99%) - INSTANT
+- Platform fee: $12 (1%)
+- User owes: $1,212 ($1,200 + $12 interest)
+- Per payment: $202 every 14 days × 6
+
+
+=== ECONOMICS ===
+
+For Users:
+- Interest to Mezo: 1% APR on MUSD borrowed
+- Interest to Platform: 0-1.5% based on installment plan
+- Late fees: 1% per late payment (after 7-day grace)
+- Keep Bitcoin exposure (benefit from price appreciation)
+- No credit check required
+
+For Merchants:
+- Platform fee: 1% (vs 2.9%+ traditional processors)
+- Instant settlement (no waiting for installments)
+- No chargebacks (crypto payments final)
+- Easy integration (just add link)
+- Access to crypto user base
+
+For Platform:
+- 1% fee per transaction
+- 0-1.5% interest spread
+- 1% late fees
+- Liquidity pool generates returns
+Example: $100k monthly volume = $2k revenue (2% of volume)
+
+
+=== SECURITY ===
+
+Smart Contract Security:
+- ReentrancyGuard on all money transfers
+- CEI (Checks-Effects-Interactions) pattern
+- Ownable for admin functions
+- Merchant verification required on-chain
+- Input validation throughout
+
+Frontend Security:
+- Merchant verification before checkout
+- Wallet address format validation
+- Integration code disabled for unverified merchants
+- On-chain verification (cannot be bypassed)
+
+User Protection:
+- Collateral-backed (no unsecured debt)
+- Transparent fees shown upfront
+- No credit check required
+- BTC stays in user control via Mezo Protocol
+- Liquidation protection (90% LTV buffer)
+
+
+=== DEPLOYMENT ===
+
+Network: Mezo Testnet (Matsnet)
+Chain ID: 31611
+RPC: https://rpc.test.mezo.org
+Explorer: https://explorer.test.mezo.org
+
+Deployed Contracts:
+- MerchantRegistry: 0x6b3eDF2bDEe7D5B5aCbf849896A1d90a8fB98927
+- InstallmentProcessor: 0xEE4296C9Ad973F7CD61aBbB138976F3b597Fc0F4
+- MUSD Token: 0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503
+
+Admin: 0x51A4FDB15787bd43FE3C96c49e559526B637bC66
+
+
+=== EXAMPLE USER SCENARIO ===
+
+Sarah wants to buy a $1,200 MacBook but doesn't want to sell her Bitcoin:
+
+1. Opens MoonPay widget, buys $1,500 of BTC with credit card (receives ~0.015 BTC)
+2. Deposits 0.015 BTC to Mezo Protocol
+3. Borrows 1,200 MUSD (80% LTV - safe buffer)
+4. Shops at verified merchant, clicks "Pay with BitBNPL"
+5. Selects 6 payments plan (1% interest = $1,212 total)
+6. Confirms purchase
+7. Merchant receives $1,188 instantly (99%)
+8. Sarah pays $202 every 14 days for 6 payments
+9. 3 months later, all payments complete
+10. Sarah's BTC is now worth $1,800 (20% appreciation)
+11. Sarah repays 1,200 MUSD to Mezo, unlocks 0.015 BTC
+12. Net result: Got MacBook + $300 profit vs selling BTC upfront!
+13. Optional: Sells BTC via MoonPay offramp for $1,800 USD to bank
+
+
+=== KEY BENEFITS ===
+
+Users:
+✓ Keep Bitcoin during purchases (maintain upside exposure)
+✓ Low interest rates (0.5-1.5% vs 20%+ credit cards/Klarna)
+✓ No credit check or income verification
+✓ Easy onramp/offramp via MoonPay (planned)
+✓ Transparent fees
+
+Merchants:
+✓ Instant settlement (paid immediately, not over time)
+✓ Lower fees (1% vs 2.9%+ Stripe/PayPal)
+✓ Zero chargeback risk
+✓ Simple integration (copy-paste link)
+✓ Tap into crypto-native customer base
+
+Platform:
+✓ Sustainable revenue model (fees + interest)
+✓ No credit risk (collateral-backed)
+✓ Scalable (smart contracts automate everything)
+✓ Liquidity pool earns returns
+
+
+=== TECHNOLOGY STACK ===
+
+Smart Contracts:
+- Solidity 0.8.20
+- Foundry for development and testing
+- OpenZeppelin libraries (ReentrancyGuard, Ownable)
+- Mezo Protocol integration
+
+Frontend:
+- Next.js 14 (App Router)
+- TypeScript
+- Wagmi v2 + Viem (Web3 integration)
+- RainbowKit (Wallet connection)
+- Tailwind CSS
+- Zustand (State management)
+- Recharts (Analytics)
+
+Key Integrations:
+- Mezo Protocol (BTC-backed stablecoin)
+- MoonPay (Fiat onramp/offramp - planned)
+- WalletConnect
+- MetaMask
+
+
+=== PROJECT STATUS ===
+
+Completed:
+✓ Smart contracts developed and deployed to Mezo testnet
+✓ Frontend fully integrated with contracts
+✓ Merchant registration and verification system
+✓ Admin dashboard with merchant management
+✓ Marketplace for browsing verified merchants
+✓ Complete checkout flow with installment selection
+✓ User dashboard for BTC/MUSD management
+✓ Payment timeline and tracking
+✓ Merchant dashboard with integration code
+✓ URL-based merchant integration (ready now)
+
+In Progress:
+⏳ Platform liquidity pool funding
+⏳ First merchant transactions testing
+⏳ End-to-end flow testing
+
+Planned:
+⏳ MoonPay onramp/offramp integration
+⏳ JavaScript widget for merchants
+⏳ React/Next.js SDK (NPM package)
+⏳ Automated payment reminders
+⏳ Security audit
+⏳ Mainnet deployment
+
+
+=== COMPETITIVE ADVANTAGE ===
+
+vs Traditional BNPL (Klarna, Afterpay):
+- 97% lower interest rates (1% vs 30%+)
+- No credit check required
+- Users keep asset exposure (Bitcoin)
+- Instant merchant settlement
+- Lower merchant fees (1% vs 3-6%)
+
+vs Selling Bitcoin:
+- Maintain upside exposure
+- Benefit from appreciation
+- No taxable event at purchase time
+- Preserve long-term holdings
+
+vs Other Crypto Lending:
+- Specifically designed for e-commerce
+- Merchant integration built-in
+- Installment payment structure (not lump sum)
+- Platform-fronted merchant settlement
+- Verified merchant network
+
+
+=== MARKET OPPORTUNITY ===
+
+BNPL Market: $700B+ globally, growing 25% annually
+Bitcoin Holders: 400M+ worldwide
+Problem: Bitcoin holders reluctant to spend (want to HODL)
+Solution: BitBNPL enables spending without selling
+
+Target Users:
+- Bitcoin holders wanting to preserve exposure
+- Crypto-native users seeking low-cost credit
+- Users without traditional credit access
+
+Target Merchants:
+- E-commerce stores (electronics, fashion, gaming)
+- Digital goods sellers
+- Subscription services
+- Crypto-friendly businesses
+
+
+=== MOONPAY INTEGRATION DETAILS ===
+
+Onramp (Buy BTC):
+- Embedded widget in dashboard
+- Credit card / bank transfer support
+- KYC handled by MoonPay
+- BTC sent directly to user wallet
+- Fee: ~3.5% (MoonPay's standard fee)
+
+Implementation:
+const { openBuyWidget } = useMoonPay()
+openBuyWidget(500) // Buy $500 of BTC
+
+Offramp (Sell BTC):
+- Sell widget in dashboard
+- BTC → USD to bank account
+- User sends BTC to MoonPay address
+- MoonPay deposits USD to bank
+- Fee: ~4.5% (MoonPay's standard fee)
+
+Implementation:
+const { openSellWidget } = useMoonPay()
+openSellWidget(0.01) // Sell 0.01 BTC
+
+Benefits:
+✓ No crypto → No barrier to entry
+✓ Seamless fiat → BTC → MUSD flow
+✓ Exit strategy for profit-taking
+✓ Mainstream user adoption
+
+
+=== FUTURE ROADMAP ===
+
+Q1 2025:
+- Complete testnet testing
+- MoonPay integration
+- JavaScript widget development
+- First merchant partnerships
+
+Q2 2025:
+- Security audit
+- React SDK (NPM package)
+- Merchant analytics dashboard
+- Marketing campaign
+
+Q3 2025:
+- Mainnet launch
+- Mobile app development
+- Multi-currency support (other stablecoins)
+- WordPress plugin
+
+Q4 2025:
+- International expansion
+- Strategic partnerships
+- Advanced features (recurring payments, subscriptions)
+- Governance token launch
+
+
+=== CONTACT & LINKS ===
+
+Deployed Application: [Your URL]
+GitHub: [Your GitHub]
+Documentation: Available in repo
+Twitter: [Your Twitter]
+Discord: [Your Discord]
+
+Built with: Bitcoin, Mezo Protocol, Next.js, Solidity, and MoonPay (planned)
+
+License: MIT
+
+Last Updated: January 2025

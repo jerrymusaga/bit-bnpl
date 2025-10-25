@@ -4,6 +4,7 @@ import { useAccount } from 'wagmi'
 import { useRouter } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
 import { useMerchantRegistry } from '@/hooks/useMerchantRegistry'
+import { useMezoContracts } from '@/hooks/useMezoContracts'
 import {
   DollarSign,
   ShoppingCart,
@@ -16,6 +17,7 @@ import {
   ExternalLink,
   Copy,
   Sparkles,
+  Wallet,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -23,8 +25,10 @@ export default function MerchantDashboardPage() {
   const { address, isConnected } = useAccount()
   const router = useRouter()
   const { merchantData, calculatePlatformFee, calculateMerchantAmount } = useMerchantRegistry()
+  const { musdBalance } = useMezoContracts()
 
   const [copiedCode, setCopiedCode] = useState(false)
+  const [selectedIntegration, setSelectedIntegration] = useState<'simple' | 'widget' | 'react'>('simple')
   const [isLoading, setIsLoading] = useState(true)
 
   // Give time for merchant data to load
@@ -71,21 +75,71 @@ export default function MerchantDashboardPage() {
     return formatMUSD(musd)
   }
 
-  // Example integration code
-  const widgetCode = `<!-- Add BitBNPL Widget -->
-<script src="https://bitbnpl.com/widget.js"></script>
+  // Get base URL (will be updated for production)
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bitbnpl.com'
+
+  // Generate unique integration token based on merchant address
+  // This prevents unverified merchants from copying integration code
+  const generateIntegrationToken = () => {
+    if (!merchantData?.isVerified || !address) return 'VERIFICATION_REQUIRED'
+    // In production, this would be a proper signed JWT or API key from the backend
+    // For now, use a simple hash of the address (merchant must be verified on-chain anyway)
+    return address
+  }
+
+  const integrationToken = generateIntegrationToken()
+
+  // Simple URL integration - only works if merchant is verified on-chain
+  const simpleIntegration = `<!-- Simple Link Integration -->
+<!-- ⚠️ This integration only works if you're verified on BitBNPL -->
+<a href="${baseUrl}/checkout?merchant=${integrationToken}&amount=299.99&itemName=Product%20Name&itemId=prod_123&itemImage=🛍️&merchantName=${encodeURIComponent(merchantData?.businessName || 'Your Store')}"
+   style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #F97316 0%, #EA580C 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+  Pay with BitBNPL 🟠
+</a>`
+
+  // Widget code - Auto-generates buttons (Coming Soon)
+  const widgetCode = `<!-- Add BitBNPL Widget (Coming Soon) -->
+<!-- ⚠️ Only works for verified merchants -->
+<script src="${baseUrl}/widget.js" data-merchant="${integrationToken}"></script>
 
 <!-- Payment Button -->
 <button
-  class="bitbnpl-checkout"
-  data-merchant-wallet="${address}"
+  class="bitbnpl-button"
   data-amount="299.99"
-  data-item-name="Product Name">
+  data-item-name="Product Name"
+  data-item-id="prod_123"
+  data-item-image="🛍️">
   Pay with BitBNPL
 </button>`
 
+  // React/Next.js integration (Coming Soon)
+  const reactCode = `// npm install @bitbnpl/react (Coming Soon)
+// ⚠️ Only works for verified merchants
+import { BitBNPLButton } from '@bitbnpl/react'
+
+<BitBNPLButton
+  merchantAddress="${integrationToken}"
+  amount={299.99}
+  itemName="Product Name"
+  itemId="prod_123"
+  itemImage="🛍️"
+/>`
+
+  const getActiveCode = () => {
+    switch (selectedIntegration) {
+      case 'simple':
+        return simpleIntegration
+      case 'widget':
+        return widgetCode
+      case 'react':
+        return reactCode
+      default:
+        return simpleIntegration
+    }
+  }
+
   const copyCode = () => {
-    navigator.clipboard.writeText(widgetCode)
+    navigator.clipboard.writeText(getActiveCode())
     setCopiedCode(true)
     setTimeout(() => setCopiedCode(false), 2000)
   }
@@ -219,14 +273,16 @@ export default function MerchantDashboardPage() {
           <Card padding="lg" className="group hover:border-[var(--color-accent-600)]/40 transition-all">
             <div className="flex justify-between items-start mb-3">
               <span className="text-sm font-medium text-[var(--text-tertiary)] uppercase tracking-wide">
-                Platform Fee
+                MUSD Balance
               </span>
               <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <DollarSign className="h-5 w-5 text-orange-500" />
+                <Wallet className="h-5 w-5 text-orange-500" />
               </div>
             </div>
-            <div className="text-3xl font-bold text-[var(--text-primary)] mb-1">1%</div>
-            <div className="text-sm text-[var(--text-muted)]">vs 3-6% traditional</div>
+            <div className="text-3xl font-bold text-[var(--text-primary)] mb-1">
+              {formatMUSD(musdBalance)}
+            </div>
+            <div className="text-sm text-[var(--text-muted)]">In your wallet</div>
           </Card>
         </div>
 
@@ -249,18 +305,72 @@ export default function MerchantDashboardPage() {
               <CardContent>
                 <div className="mt-4">
                   <p className="text-sm text-[var(--text-secondary)] mb-4">
-                    Add this code to your website to start accepting BitBNPL payments
+                    Choose your integration method below
                   </p>
 
+                  {/* Integration Method Tabs */}
+                  <div className="flex space-x-2 mb-4 p-1 bg-[var(--bg-secondary)] rounded-lg">
+                    <button
+                      onClick={() => setSelectedIntegration('simple')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                        selectedIntegration === 'simple'
+                          ? 'bg-[var(--color-accent-600)] text-white shadow-sm'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      Simple Link
+                    </button>
+                    <button
+                      onClick={() => setSelectedIntegration('widget')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                        selectedIntegration === 'widget'
+                          ? 'bg-[var(--color-accent-600)] text-white shadow-sm'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      Widget <span className="text-xs opacity-70">(Soon)</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedIntegration('react')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                        selectedIntegration === 'react'
+                          ? 'bg-[var(--color-accent-600)] text-white shadow-sm'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      React SDK <span className="text-xs opacity-70">(Soon)</span>
+                    </button>
+                  </div>
+
+                  {/* Description for selected method */}
+                  <div className="mb-4 p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                    {selectedIntegration === 'simple' && (
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        ✅ <strong>Recommended</strong> - No setup required. Just copy the link and add it to any HTML page.
+                      </p>
+                    )}
+                    {selectedIntegration === 'widget' && (
+                      <p className="text-sm text-[var(--text-muted)]">
+                        🚧 Coming Soon - JavaScript widget that auto-generates payment buttons on your site.
+                      </p>
+                    )}
+                    {selectedIntegration === 'react' && (
+                      <p className="text-sm text-[var(--text-muted)]">
+                        🚧 Coming Soon - React/Next.js component with TypeScript support.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="relative">
-                    <pre className="bg-[var(--bg-secondary)] p-4 rounded-lg overflow-x-auto text-xs font-mono text-[var(--text-primary)] border border-[var(--border-color)]">
-                      {widgetCode}
+                    <pre className="bg-[var(--bg-secondary)] p-4 rounded-lg overflow-x-auto text-xs font-mono text-[var(--text-primary)] border border-[var(--border-color)] max-h-64">
+                      {getActiveCode()}
                     </pre>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={copyCode}
                       className="absolute top-2 right-2"
+                      disabled={!merchantData.isVerified}
                     >
                       {copiedCode ? (
                         <>
@@ -276,14 +386,31 @@ export default function MerchantDashboardPage() {
                     </Button>
                   </div>
 
+                  {selectedIntegration === 'simple' && (
+                    <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h4 className="font-semibold text-green-600 mb-1">Ready to use!</h4>
+                          <p className="text-sm text-[var(--text-secondary)] mb-2">
+                            This link will redirect customers to your BitBNPL checkout page with pre-filled product information.
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            💡 Tip: Replace the amount, itemName, and itemId with your actual product details
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Button variant="accent" fullWidth disabled={!merchantData.isVerified}>
                       <Code className="h-4 w-4 mr-2" />
                       View Full Docs
                     </Button>
                     <Button variant="outline" fullWidth disabled={!merchantData.isVerified}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download SDK
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Test Integration
                     </Button>
                   </div>
                 </div>

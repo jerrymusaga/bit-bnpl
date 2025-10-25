@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import MerchantRegistryABI from '@/lib/abis/MerchantRegistry.json'
 
 // Deployed contract address
-const MERCHANT_REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_MERCHANT_REGISTRY_ADDRESS as `0x${string}`) || '0x6b3eDF2bDEe7D5B5aCbf849896A1d90a8fB98927'
+const MERCHANT_REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_MERCHANT_REGISTRY_ADDRESS as `0x${string}`) || '0xB2Dbc7689F4C1E7310693bD19cbd33c6548B9a73'
 
 // Use full ABI from compiled contract
 const MERCHANT_REGISTRY_ABI = MerchantRegistryABI

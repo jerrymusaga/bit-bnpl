@@ -3,20 +3,16 @@
 import { useState } from 'react'
 import { useAccount, useBalance } from 'wagmi'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/components/ui'
-import {
-  mockTransactions,
-  formatCurrency,
-  formatBTC,
-  formatDate
-} from '@/lib/mockData'
+import { formatCurrency, formatBTC, formatDate } from '@/lib/mockData'
 import { useMezoContracts, formatMUSD } from '@/hooks/useMezoContracts'
 import { AddCollateralModal } from '@/components/modals/AddCollateralModal'
 import { BorrowMUSDModal } from '@/components/modals/BorrowMUSDModal'
 import { RepayMUSDModal } from '@/components/modals/RepayMUSDModal'
 import { ActiveInstallments } from '@/components/dashboard/ActiveInstallments'
+import { TransactionHistory } from '@/components/dashboard/TransactionHistory'
 import { CollateralHealthMeter } from '@/components/dashboard/CollateralHealthMeter'
 import { StatsCard } from '@/components/dashboard/StatsCard'
-import { TrendingUp, AlertCircle, Clock, CheckCircle, Coins, Wallet, DollarSign, Activity } from 'lucide-react'
+import { TrendingUp, AlertCircle, Clock, Coins, Wallet, DollarSign, Activity } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardPage() {
@@ -36,6 +32,7 @@ export default function DashboardPage() {
     collateralAmount,
     btcPrice,
     liquidationReserve,
+    musdBalance,
     isLoading: mezoLoading,
   } = useMezoContracts()
 
@@ -86,9 +83,6 @@ export default function DashboardPage() {
 
   // Total owed = principal + real accrued interest from Mezo contract
   const totalOwed = currentDebtNum + accruedInterestNum
-
-  // Transaction history (still using mock data for now)
-  const transactions = mockTransactions
 
   return (
     <main className="min-h-screen py-8">
@@ -145,9 +139,9 @@ export default function DashboardPage() {
           />
 
           <StatsCard
-            title="Available MUSD"
-            value={formatMUSD(availableMUSD.toString())}
-            subtitle={`${borrowingCapacityNum > 0 ? ((availableMUSD / borrowingCapacityNum) * 100).toFixed(0) : '0'}% available`}
+            title="MUSD Balance"
+            value={formatMUSD(musdBalance)}
+            subtitle="In your wallet"
             icon={Wallet}
             color="success"
           />
@@ -275,64 +269,8 @@ export default function DashboardPage() {
             {/* Active Installments */}
             <ActiveInstallments />
 
-            {/* Transaction History */}
-            <Card padding="lg">
-              <CardHeader>
-                <CardTitle>Recent Transactions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mt-4 space-y-3">
-                  {transactions.map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-card-hover)] transition-colors"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                          tx.type === 'purchase' ? 'bg-[var(--color-accent-600)]/10' :
-                          tx.type === 'borrow' ? 'bg-[var(--color-primary-600)]/10' :
-                          'bg-[var(--color-success-500)]/10'
-                        }`}>
-                          {tx.status === 'completed' ? (
-                            <CheckCircle className={`h-5 w-5 ${
-                              tx.type === 'purchase' ? 'text-[var(--color-accent-600)]' :
-                              tx.type === 'borrow' ? 'text-[var(--color-primary-400)]' :
-                              'text-[var(--color-success-500)]'
-                            }`} />
-                          ) : (
-                            <Clock className="h-5 w-5 text-[var(--color-warning-500)]" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium text-[var(--text-primary)]">
-                            {tx.type === 'purchase' ? tx.product :
-                             tx.type === 'borrow' ? 'Borrowed MUSD' :
-                             'Loan Repayment'}
-                          </p>
-                          <p className="text-sm text-[var(--text-muted)]">
-                            {formatDate(tx.timestamp)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-semibold ${
-                          tx.type === 'repayment' ? 'text-[var(--color-success-500)]' :
-                          'text-[var(--text-primary)]'
-                        }`}>
-                          {tx.type === 'repayment' ? '+' : '-'}{formatCurrency(tx.amount)}
-                        </p>
-                        <Badge
-                          variant={tx.status === 'completed' ? 'success' : 'warning'}
-                          size="sm"
-                        >
-                          {tx.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Transaction History - Completed Purchases */}
+            <TransactionHistory />
           </div>
 
           {/* Right Column - Quick Actions & Info */}

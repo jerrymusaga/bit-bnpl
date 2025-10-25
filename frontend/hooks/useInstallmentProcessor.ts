@@ -1,11 +1,12 @@
 'use client'
 
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useEffect, useCallback } from 'react'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
 import { parseUnits, formatUnits } from 'viem'
 import InstallmentProcessorABI from '@/lib/abis/InstallmentProcessor.json'
 
 // Deployed InstallmentProcessor contract address
-const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0xEE4296C9Ad973F7CD61aBbB138976F3b597Fc0F4'
+const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0x059C79412565a945159c6c9E037e8D54E1093Ef8'
 
 export interface Purchase {
   merchant: string
@@ -54,10 +55,13 @@ export interface InstallmentProcessorActions {
   paymentError: Error | null
   depositError: Error | null
   withdrawError: Error | null
+  createHash: `0x${string}` | undefined
+  payHash: `0x${string}` | undefined
 }
 
 export function useInstallmentProcessor(): InstallmentProcessorData & InstallmentProcessorActions {
   const { address } = useAccount()
+  const publicClient = usePublicClient()
 
   // Write contract hooks
   const {
@@ -112,7 +116,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     functionName: 'liquidityPool',
   })
 
-  const { data: userPurchaseCountData, isLoading: countLoading } = useReadContract({
+  const { data: userPurchaseCountData, isLoading: countLoading, refetch: refetchCount } = useReadContract({
     address: INSTALLMENT_PROCESSOR_ADDRESS,
     abi: InstallmentProcessorABI,
     functionName: 'userPurchaseCount',
@@ -122,7 +126,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     },
   })
 
-  const { data: activePurchasesData, isLoading: activePurchasesLoading } = useReadContract({
+  const { data: activePurchasesData, isLoading: activePurchasesLoading, refetch: refetchActivePurchases } = useReadContract({
     address: INSTALLMENT_PROCESSOR_ADDRESS,
     abi: InstallmentProcessorABI,
     functionName: 'getUserActivePurchases',
@@ -132,7 +136,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     },
   })
 
-  const { data: totalOwedData, isLoading: totalOwedLoading } = useReadContract({
+  const { data: totalOwedData, isLoading: totalOwedLoading, refetch: refetchTotalOwed } = useReadContract({
     address: INSTALLMENT_PROCESSOR_ADDRESS,
     abi: InstallmentProcessorABI,
     functionName: 'getTotalOwed',
@@ -226,13 +230,13 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
    * @param purchaseId ID of the purchase
    * @returns Purchase details
    */
-  const getPurchase = async (purchaseId: number): Promise<Purchase | null> => {
-    if (!address) {
+  const getPurchase = useCallback(async (purchaseId: number): Promise<Purchase | null> => {
+    if (!address || !publicClient) {
       return null
     }
 
     try {
-      const { data } = await useReadContract({
+      const data = await publicClient.readContract({
         address: INSTALLMENT_PROCESSOR_ADDRESS,
         abi: InstallmentProcessorABI,
         functionName: 'getPurchase',
@@ -268,20 +272,20 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
       console.error('Error getting purchase:', error)
       return null
     }
-  }
+  }, [address, publicClient])
 
   /**
    * Check if payment is late
    * @param purchaseId ID of the purchase
    * @returns True if payment is late
    */
-  const isPaymentLate = async (purchaseId: number): Promise<boolean> => {
-    if (!address) {
+  const isPaymentLate = useCallback(async (purchaseId: number): Promise<boolean> => {
+    if (!address || !publicClient) {
       return false
     }
 
     try {
-      const { data } = await useReadContract({
+      const data = await publicClient.readContract({
         address: INSTALLMENT_PROCESSOR_ADDRESS,
         abi: InstallmentProcessorABI,
         functionName: 'isPaymentLate',
@@ -293,7 +297,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
       console.error('Error checking if payment is late:', error)
       return false
     }
-  }
+  }, [address, publicClient])
 
   /**
    * Deposit MUSD into liquidity pool (admin only)
@@ -335,6 +339,18 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     }
   }
 
+  // Refetch data when transactions are confirmed
+  useEffect(() => {
+    if (isCreateConfirmed || isPayConfirmed) {
+      console.log('🔄 Transaction confirmed! Refetching purchase data...')
+      // Refetch all purchase-related data
+      refetchCount()
+      refetchActivePurchases()
+      refetchTotalOwed()
+      console.log('✅ Data refetch triggered')
+    }
+  }, [isCreateConfirmed, isPayConfirmed, refetchCount, refetchActivePurchases, refetchTotalOwed])
+
   return {
     // Data
     liquidityPool,
@@ -365,5 +381,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     paymentError: paymentError as Error | null,
     depositError: depositError as Error | null,
     withdrawError: withdrawError as Error | null,
+    createHash,
+    payHash,
   }
 }

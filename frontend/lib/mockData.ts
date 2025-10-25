@@ -183,7 +183,7 @@ export const mockProducts: Product[] = [
     id: '1',
     name: 'MacBook Pro 14"',
     description: 'M3 Pro chip, 18GB RAM, 512GB SSD. Perfect for professional work.',
-    price: 1999,
+    price: 100,
     category: 'laptop',
     image: '/products/macbook.jpg',
     inStock: true,

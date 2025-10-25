@@ -10,6 +10,9 @@ export default function DemoStorePage() {
   const { addToCart, cartTotal, cartCount } = useCart()
   const products = mockProducts
 
+  // Demo store merchant address (verified merchant)
+  const DEMO_MERCHANT_ADDRESS = '0x51A4FDB15787bd43FE3C96c49e559526B637bC66'
+
   const handleAddToCart = (product: Product) => {
     addToCart({
       id: product.id,
@@ -17,6 +20,8 @@ export default function DemoStorePage() {
       price: product.price,
       image: product.image,
       category: product.category,
+      merchantId: DEMO_MERCHANT_ADDRESS,
+      merchantName: 'Demo Store',
     })
   }
 

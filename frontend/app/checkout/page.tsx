@@ -1,25 +1,31 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useSearchParams } from 'next/navigation'
+import { parseUnits } from 'viem'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui'
 import { useMezoContracts, formatMUSD } from '@/hooks/useMezoContracts'
 import { useInstallmentProcessor } from '@/hooks/useInstallmentProcessor'
+import { useMerchantDetails } from '@/hooks/useAdminData'
 import { PaymentTimeline } from '@/components/checkout/PaymentTimeline'
 import { TransactionProgress } from '@/components/checkout/TransactionProgress'
 import { AlertCircle, CheckCircle, TrendingUp, Shield, Zap } from 'lucide-react'
 import Link from 'next/link'
-import { useCart } from '@/contexts/CartContext'
+import { useCart, CartItem } from '@/contexts/CartContext'
+import MUSDDeployment from '@mezo-org/musd-contracts/deployments/matsnet/MUSD.json'
 
 type InstallmentPlan = '1' | '4' | '6' | '8'
 
 export default function CheckoutPage() {
   const { isConnected, address } = useAccount()
+  const searchParams = useSearchParams()
   const {
     borrowingCapacity,
     currentDebt,
     btcPrice,
     collateralAmount,
+    musdBalance,
     isLoading: mezoLoading,
   } = useMezoContracts()
 
@@ -29,15 +35,79 @@ export default function CheckoutPage() {
     isConfirming,
     isConfirmed,
     createError,
+    createHash,
   } = useInstallmentProcessor()
 
-  const { cart: cartItems, clearCart } = useCart()
+  const { musdBalanceRaw } = useMezoContracts()
+
+  // MUSD approval for pay in full
+  const {
+    writeContract: approveWrite,
+    data: approveHash,
+    isPending: isApproving,
+    error: approveError,
+  } = useWriteContract()
+
+  const { isLoading: isApproveConfirming, isSuccess: isApproveConfirmed } = useWaitForTransactionReceipt({
+    hash: approveHash,
+  })
+
+  const { cart: cartItems, clearCart, addToCart } = useCart()
 
   const [paymentComplete, setPaymentComplete] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<InstallmentPlan>('4')
+  const [urlMerchant, setUrlMerchant] = useState<string | null>(null)
+  const [merchantVerificationError, setMerchantVerificationError] = useState<string | null>(null)
+  const [needsApproval, setNeedsApproval] = useState(false)
+  const [completedPurchase, setCompletedPurchase] = useState<{
+    items: CartItem[]
+    total: number
+    plan: InstallmentPlan
+  } | null>(null)
+
+  // Verify merchant if coming from URL
+  const merchantAddress = urlMerchant || (cartItems[0]?.merchantId as `0x${string}`) || null
+  const { merchant: merchantInfo } = useMerchantDetails(merchantAddress as `0x${string}` | undefined)
+
+  // Handle URL parameters for direct merchant integration
+  useEffect(() => {
+    const merchant = searchParams.get('merchant')
+    const amount = searchParams.get('amount')
+    const itemName = searchParams.get('itemName') || searchParams.get('item')
+    const itemId = searchParams.get('itemId') || searchParams.get('id')
+    const itemImage = searchParams.get('itemImage') || searchParams.get('image') || '🛍️'
+    const merchantName = searchParams.get('merchantName') || 'Merchant'
+
+    if (merchant && amount && itemName) {
+      // Validate merchant address format
+      if (!merchant.startsWith('0x') || merchant.length !== 42) {
+        setMerchantVerificationError('Invalid merchant address format')
+        return
+      }
+
+      // Store merchant address for verification
+      setUrlMerchant(merchant)
+
+      // Add item to cart automatically
+      const priceNum = parseFloat(amount)
+      if (!isNaN(priceNum)) {
+        addToCart({
+          id: itemId || `url-item-${Date.now()}`,
+          name: itemName,
+          price: priceNum,
+          image: itemImage,
+          merchantId: merchant,
+          merchantName: merchantName,
+        })
+      }
+    }
+  }, [searchParams, addToCart])
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const total = subtotal // No tax for crypto payments
+
+  // Get user's MUSD balance
+  const musdBalanceNum = parseFloat(musdBalance)
 
   // Calculate available borrowing capacity
   const borrowingCapacityNum = parseFloat(borrowingCapacity)
@@ -45,8 +115,13 @@ export default function CheckoutPage() {
   const availableCapacity = borrowingCapacityNum - currentDebtNum
   const collateralAmountNum = parseFloat(collateralAmount)
 
-  // Check if user can afford this purchase
-  const canAfford = availableCapacity >= total
+  // Check payment options available
+  const canPayInFull = musdBalanceNum >= total // Can pay with MUSD balance
+  const canUseInstallments = availableCapacity >= total // Can use BNPL (needs collateral)
+
+  // Check if user can afford based on selected plan
+  const canAffordSelectedPlan = selectedPlan === '1' ? canPayInFull : canUseInstallments
+  const canAfford = canPayInFull || canUseInstallments // For general error message
 
   // Calculate preserved capacity for each plan
   const calculatePreservedCapacity = (plan: InstallmentPlan) => {
@@ -115,68 +190,134 @@ export default function CheckoutPage() {
 
   const activePlan = paymentPlans[selectedPlan]
 
-  // Get merchant address from cart items
-  // In production, this would come from the merchant's registration data
-  // For demo purposes, use mock address for demo store, or first cart item's merchantId
-  const getMerchantAddress = (): string => {
-    if (cartItems.length > 0 && cartItems[0].merchantId) {
-      // TODO: Look up actual wallet address from merchant registry
-      // For now, return a mock address
-      return '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'
+  // Get merchant address from URL params or cart items
+  const getMerchantAddress = (): string | null => {
+    // Priority 1: URL parameter (direct merchant integration)
+    if (urlMerchant) {
+      return urlMerchant
     }
-    // Default demo merchant address
-    return '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'
+
+    // Priority 2: Cart item's merchantId (the merchant's registered wallet address)
+    if (cartItems.length > 0 && cartItems[0].merchantId) {
+      return cartItems[0].merchantId
+    }
+
+    // No merchant address available
+    return null
   }
+
+  // Handle MUSD approval for pay in full
+  const handleApprove = async () => {
+    if (!address) return
+
+    const MUSD_ADDRESS = process.env.NEXT_PUBLIC_MUSD_ADDRESS as `0x${string}`
+    const INSTALLMENT_PROCESSOR_ADDRESS = process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`
+
+    // Approve max amount to avoid needing approval again
+    const maxApproval = parseUnits('1000000', 18) // 1M MUSD
+
+    approveWrite({
+      address: MUSD_ADDRESS,
+      abi: MUSDDeployment.abi,
+      functionName: 'approve',
+      args: [INSTALLMENT_PROCESSOR_ADDRESS, maxApproval],
+    })
+  }
+
+  // Auto-proceed to purchase after approval confirms
+  useEffect(() => {
+    if (isApproveConfirmed && needsApproval) {
+      setNeedsApproval(false)
+      // Trigger checkout again
+      handleCheckout()
+    }
+  }, [isApproveConfirmed, needsApproval])
 
   // Handle checkout
   const handleCheckout = async () => {
-    if (!canAfford) {
-      alert('Insufficient borrowing capacity. Please add more BTC collateral.')
-      return
+    if (!canAffordSelectedPlan || !address) {
+      return // Error messages already shown inline
     }
 
-    if (!address) {
-      alert('Please connect your wallet')
-      return
+    const merchantAddress = getMerchantAddress()
+    if (!merchantAddress) {
+      return // Shouldn't happen if cart has items, but safety check
     }
 
-    try {
-      const merchantAddress = getMerchantAddress()
-
-      console.log('Creating purchase with:', {
-        total,
-        selectedPlan,
-        availableCapacity,
-        merchantAddress,
-        items: cartItems.length,
-      })
-
-      // Create purchase via InstallmentProcessor contract
-      // Platform pays merchant instantly from liquidity pool
-      // User pays back platform in bi-weekly installments
-      await createPurchase(
-        merchantAddress,
-        total.toString(),
-        parseInt(selectedPlan) as 1 | 4 | 6 | 8,
-        availableCapacity.toString()
-      )
-
-      console.log('Purchase creation initiated - merchant will receive instant payment')
-      // Note: Transaction confirmation is handled by isConfirming/isConfirmed from the hook
-      // Success page will be shown automatically when transaction confirms (via useEffect)
-    } catch (error) {
-      console.error('Checkout failed:', error)
-      alert(`Checkout failed: ${(error as Error).message}`)
+    // If paying in full, check if approval is needed
+    if (selectedPlan === '1') {
+      // For pay in full, need MUSD approval first
+      if (!isApproveConfirmed && !needsApproval) {
+        setNeedsApproval(true)
+        await handleApprove()
+        return // Will continue after approval confirms
+      }
     }
+
+    // Create purchase via InstallmentProcessor contract
+    await createPurchase(
+      merchantAddress,
+      total.toString(),
+      parseInt(selectedPlan) as 1 | 4 | 6 | 8,
+      availableCapacity.toString()
+    )
+
+    // Note: Transaction confirmation is handled by isConfirming/isConfirmed from the hook
+    // Success page will be shown automatically when transaction confirms (via useEffect)
+    // Errors are displayed via createError state in the UI
   }
 
   // Auto-show success page when transaction is confirmed
   useEffect(() => {
     if (isConfirmed && !paymentComplete) {
+      console.log('✅ Purchase confirmed! Transaction successful')
+      // Save purchase details before clearing cart
+      setCompletedPurchase({
+        items: cartItems,
+        total: total,
+        plan: selectedPlan,
+      })
       setPaymentComplete(true)
       clearCart() // Clear cart after successful purchase
     }
-  }, [isConfirmed, paymentComplete, clearCart])
+  }, [isConfirmed, paymentComplete, clearCart, cartItems, total, selectedPlan])
+
+  // Log transaction states for debugging
+  useEffect(() => {
+    if (isCreating) console.log('🔄 Creating purchase transaction...')
+    if (isConfirming) console.log('⏳ Waiting for transaction confirmation...')
+    if (createError) console.error('❌ Create purchase error:', createError)
+  }, [isCreating, isConfirming, createError])
+
+  // Check if merchant is verified
+  const isMerchantVerified = merchantInfo?.isVerified && merchantInfo?.isActive
+
+  // Show merchant verification error
+  if (merchantVerificationError || (merchantInfo && !isMerchantVerified)) {
+    return (
+      <main className="min-h-screen py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold mb-4">Merchant Not Verified</h1>
+            <p className="text-[var(--text-secondary)] mb-6">
+              {merchantVerificationError ||
+                'This merchant is not verified on BitBNPL. Only verified merchants can accept payments.'}
+            </p>
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400 mb-6">
+              <AlertCircle className="inline h-4 w-4 mr-1" />
+              Security: Only shop with verified merchants to ensure payment protection.
+            </div>
+            <Link href="/marketplace">
+              <Button variant="accent" size="lg">
+                Browse Verified Merchants
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   // Redirect to store if cart is empty
   if (cartItems.length === 0 && !paymentComplete) {
@@ -222,6 +363,40 @@ export default function CheckoutPage() {
   }
 
   if (paymentComplete) {
+    // If no completed purchase data, redirect to demo
+    if (!completedPurchase) {
+      return (
+        <main className="min-h-screen py-16">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl mx-auto text-center">
+              <CheckCircle className="h-20 w-20 text-[var(--color-success-500)] mx-auto mb-6" />
+              <h1 className="text-4xl font-bold mb-4">Order Confirmed!</h1>
+              <p className="text-xl text-[var(--text-secondary)] mb-8">
+                Your payment has been processed successfully
+              </p>
+              <div className="flex gap-4 justify-center">
+                <Link href="/dashboard">
+                  <Button variant="accent" size="lg">
+                    View Dashboard
+                  </Button>
+                </Link>
+                <Link href="/demo">
+                  <Button variant="outline" size="lg">
+                    Continue Shopping
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+      )
+    }
+
+    // Calculate completed purchase details
+    const completedTotal = completedPurchase.total
+    const completedPlan = completedPurchase.plan
+    const completedPlanDetails = paymentPlans[completedPlan]
+
     return (
       <main className="min-h-screen py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -232,12 +407,12 @@ export default function CheckoutPage() {
               Your payment has been processed
             </p>
             <p className="text-lg text-[var(--text-muted)] mb-8">
-              {selectedPlan === '1'
+              {completedPlan === '1'
                 ? 'Paid in full with MUSD'
-                : `First payment due in ${activePlan.daysToFirstPayment} days`}
+                : `First payment due in ${completedPlanDetails.daysToFirstPayment} days`}
             </p>
 
-            {selectedPlan !== '1' && (
+            {completedPlan !== '1' && (
               <Card padding="lg" className="mb-8 text-left border-[var(--color-success-500)]/20">
                 <div className="flex items-start space-x-3 mb-4">
                   <TrendingUp className="h-6 w-6 text-[var(--color-success-500)]" />
@@ -245,7 +420,7 @@ export default function CheckoutPage() {
                     <h3 className="font-semibold text-lg mb-1">Smart Choice!</h3>
                     <p className="text-sm text-[var(--text-secondary)]">
                       By choosing installments, you preserved <span className="font-semibold text-[var(--color-success-500)]">
-                        {formatMUSD(activePlan.preservedCapacity.toString())}
+                        {formatMUSD(completedPlanDetails.preservedCapacity.toString())}
                       </span> of borrowing capacity for other opportunities.
                     </p>
                   </div>
@@ -253,7 +428,7 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-[var(--border-color)]">
                   <div>
                     <p className="text-xs text-[var(--text-tertiary)]">Payment Amount</p>
-                    <p className="font-semibold">{formatMUSD(activePlan.perPayment.toString())}</p>
+                    <p className="font-semibold">{formatMUSD(completedPlanDetails.perPayment.toString())}</p>
                   </div>
                   <div>
                     <p className="text-xs text-[var(--text-tertiary)]">Every</p>
@@ -266,7 +441,7 @@ export default function CheckoutPage() {
             <Card padding="lg" className="mb-8 text-left">
               <h3 className="font-semibold mb-4">Order Summary</h3>
               <div className="space-y-2">
-                {cartItems.map((item) => (
+                {completedPurchase.items.map((item) => (
                   <div key={item.id} className="flex justify-between">
                     <span>
                       {item.image} {item.name} x{item.quantity}
@@ -277,11 +452,32 @@ export default function CheckoutPage() {
                 <div className="border-t border-[var(--border-color)] pt-2 mt-2">
                   <div className="flex justify-between font-semibold">
                     <span>Total</span>
-                    <span>{formatMUSD(total.toString())}</span>
+                    <span>{formatMUSD(completedTotal.toString())}</span>
                   </div>
                 </div>
               </div>
             </Card>
+
+            {/* Transaction Hash */}
+            {createHash && (
+              <Card padding="lg" className="bg-[var(--bg-secondary)]">
+                <div className="space-y-2">
+                  <p className="text-sm text-[var(--text-secondary)]">Transaction Hash</p>
+                  <a
+                    href={`https://explorer.test.mezo.org/tx/${createHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-mono text-[var(--color-accent-600)] hover:text-[var(--color-accent-500)] break-all flex items-center gap-2"
+                  >
+                    {createHash}
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  <p className="text-xs text-[var(--text-muted)]">View on Mezo Explorer</p>
+                </div>
+              </Card>
+            )}
 
             <div className="flex gap-4 justify-center">
               <Link href="/dashboard">
@@ -553,7 +749,25 @@ export default function CheckoutPage() {
                   {!canAfford && (
                     <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
                       <AlertCircle className="inline h-4 w-4 mr-1" />
-                      Insufficient borrowing capacity. Add more BTC collateral.
+                      {selectedPlan === '1'
+                        ? `Insufficient MUSD. You need ${formatMUSD(total.toString())} but have ${formatMUSD(musdBalance)}`
+                        : `To use installments, lock BTC collateral first. You need ${formatMUSD(total.toString())} borrowing capacity.`
+                      }
+                    </div>
+                  )}
+
+                  {/* Show helpful message about payment options */}
+                  {selectedPlan === '1' && !canPayInFull && canUseInstallments && (
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm text-blue-400">
+                      <AlertCircle className="inline h-4 w-4 mr-1" />
+                      Tip: You can choose a 4, 6, or 8 payment plan to use your BTC collateral instead!
+                    </div>
+                  )}
+
+                  {selectedPlan !== '1' && !canUseInstallments && canPayInFull && (
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm text-blue-400">
+                      <AlertCircle className="inline h-4 w-4 mr-1" />
+                      Tip: You have enough MUSD to pay in full! Select "Pay in Full" to skip installments.
                     </div>
                   )}
 
@@ -564,15 +778,26 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
+                  {approveError && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
+                      <AlertCircle className="inline h-4 w-4 mr-1" />
+                      Approval failed. Please try again.
+                    </div>
+                  )}
+
                   <Button
                     variant="accent"
                     size="lg"
                     fullWidth
                     onClick={handleCheckout}
-                    disabled={!canAfford || isCreating || isConfirming || mezoLoading}
-                    loading={isCreating || isConfirming}
+                    disabled={!canAffordSelectedPlan || isCreating || isConfirming || isApproving || isApproveConfirming || mezoLoading}
+                    loading={isCreating || isConfirming || isApproving || isApproveConfirming}
                   >
-                    {isCreating
+                    {isApproving
+                      ? 'Approving MUSD...'
+                      : isApproveConfirming
+                      ? 'Confirming Approval...'
+                      : isCreating
                       ? 'Creating Purchase...'
                       : isConfirming
                       ? 'Confirming Transaction...'
