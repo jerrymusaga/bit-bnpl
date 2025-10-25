@@ -117,7 +117,9 @@ export default function CheckoutPage() {
 
   // Check payment options available
   const canPayInFull = musdBalanceNum >= total // Can pay with MUSD balance
-  const canUseInstallments = availableCapacity >= total // Can use BNPL (needs collateral)
+  // For installments: check if total borrowing capacity (from collateral) covers the purchase
+  // Contract checks userBorrowingCapacity >= amount, not available capacity
+  const canUseInstallments = borrowingCapacityNum >= total // Can use BNPL (needs collateral)
 
   // Check if user can afford based on selected plan
   const canAffordSelectedPlan = selectedPlan === '1' ? canPayInFull : canUseInstallments
@@ -255,11 +257,12 @@ export default function CheckoutPage() {
     }
 
     // Create purchase via InstallmentProcessor contract
+    // Pass total borrowing capacity (from collateral), not available capacity
     await createPurchase(
       merchantAddress,
       total.toString(),
       parseInt(selectedPlan) as 1 | 4 | 6 | 8,
-      availableCapacity.toString()
+      borrowingCapacity
     )
 
     // Note: Transaction confirmation is handled by isConfirming/isConfirmed from the hook
@@ -746,28 +749,94 @@ export default function CheckoutPage() {
                     <span>{formatMUSD(activePlan.totalCost.toString())}</span>
                   </div>
 
+                  {/* Educational guidance when user cannot afford */}
                   {!canAfford && (
-                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
-                      <AlertCircle className="inline h-4 w-4 mr-1" />
-                      {selectedPlan === '1'
-                        ? `Insufficient MUSD. You need ${formatMUSD(total.toString())} but have ${formatMUSD(musdBalance)}`
-                        : `To use installments, lock BTC collateral first. You need ${formatMUSD(total.toString())} borrowing capacity.`
-                      }
+                    <div className="space-y-3">
+                      <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                        <div className="flex items-start space-x-3">
+                          <AlertCircle className="h-5 w-5 text-orange-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 space-y-2">
+                            <p className="text-sm font-semibold text-orange-300">
+                              {collateralAmountNum === 0 && musdBalanceNum === 0
+                                ? "Let's Get You Started with BitBNPL"
+                                : selectedPlan === '1'
+                                ? "Need More MUSD"
+                                : "Need BTC Collateral for Installments"}
+                            </p>
+                            <p className="text-xs text-[var(--text-secondary)]">
+                              {collateralAmountNum === 0 && musdBalanceNum === 0
+                                ? "To use BitBNPL, you'll need either MUSD tokens or Bitcoin collateral. Here's how to get started:"
+                                : selectedPlan === '1'
+                                ? `You need ${formatMUSD(total.toString())} MUSD but currently have ${formatMUSD(musdBalance)}.`
+                                : `You need ${formatMUSD(total.toString())} borrowing capacity but currently have ${formatMUSD(availableCapacity.toString())}.`}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Next Steps - Simple Call to Action */}
+                        <div className="mt-4">
+                          <Link href="/dashboard">
+                            <Button variant="accent" size="lg" fullWidth className="mb-3">
+                              Go to Dashboard to Add Funds
+                            </Button>
+                          </Link>
+
+                          <div className="bg-[var(--bg-tertiary)] rounded-lg p-3 border border-[var(--border-color)]">
+                            <p className="text-xs font-semibold text-[var(--text-primary)] mb-2">What you can do:</p>
+                            <ul className="text-xs text-[var(--text-muted)] space-y-1.5">
+                              <li>• <span className="text-[var(--text-secondary)]">Lock Bitcoin</span> to unlock borrowing capacity</li>
+                              <li>• <span className="text-[var(--text-secondary)]">Borrow MUSD</span> to pay in full (0% interest)</li>
+                              <li>• Use borrowing capacity for installment payments</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {/* Show helpful message about payment options */}
-                  {selectedPlan === '1' && !canPayInFull && canUseInstallments && (
-                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm text-blue-400">
-                      <AlertCircle className="inline h-4 w-4 mr-1" />
-                      Tip: You can choose a 4, 6, or 8 payment plan to use your BTC collateral instead!
+                  {canAfford && selectedPlan === '1' && !canPayInFull && canUseInstallments && (
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-blue-300 font-medium mb-1">💡 Tip: Use Installments Instead</p>
+                          <p className="text-xs text-blue-200">
+                            You have {formatMUSD(availableCapacity.toString())} borrowing capacity from your BTC collateral.
+                            Choose a 4, 6, or 8 payment plan below to complete this purchase!
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  {selectedPlan !== '1' && !canUseInstallments && canPayInFull && (
-                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm text-blue-400">
-                      <AlertCircle className="inline h-4 w-4 mr-1" />
-                      Tip: You have enough MUSD to pay in full! Select "Pay in Full" to skip installments.
+                  {canAfford && selectedPlan !== '1' && canUseInstallments && canPayInFull && (
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-blue-300 font-medium mb-1">💡 Alternative Option Available</p>
+                          <p className="text-xs text-blue-200">
+                            You have {formatMUSD(musdBalance)} MUSD. You could also pay in full with 0% interest,
+                            but installments preserve more borrowing capacity for future purchases.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {canAfford && selectedPlan !== '1' && !canUseInstallments && canPayInFull && (
+                    <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg text-sm">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-orange-300 font-medium mb-1">Installments Not Available</p>
+                          <p className="text-xs text-orange-200">
+                            You need {formatMUSD(total.toString())} borrowing capacity for installments, but you have {formatMUSD(availableCapacity.toString())}.
+                            Select "Pay in Full" above to use your {formatMUSD(musdBalance)} MUSD instead.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
