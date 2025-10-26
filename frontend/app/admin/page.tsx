@@ -919,23 +919,14 @@ export default function AdminPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="mt-4">
                   <div>
-                    <span className="text-sm text-[var(--text-tertiary)]">Pool Balance</span>
-                    <p className="text-3xl font-bold text-cyan-500 mt-1">
+                    <span className="text-sm text-[var(--text-tertiary)]">Available Liquidity</span>
+                    <p className="text-5xl font-bold text-cyan-500 mt-2">
                       {formatMUSD(stats.liquidityPool)}
                     </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-[var(--text-tertiary)]">Utilization Rate</span>
-                    <p className="text-3xl font-bold text-[var(--text-primary)] mt-1">
-                      {stats.poolUtilization}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-[var(--text-tertiary)]">Available</span>
-                    <p className="text-3xl font-bold text-green-500 mt-1">
-                      {formatMUSD((parseFloat(stats.liquidityPool) * 0.55).toString())}
+                    <p className="text-sm text-[var(--text-muted)] mt-2">
+                      Funds available to pay merchants instantly for new installment purchases
                     </p>
                   </div>
                 </div>
