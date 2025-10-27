@@ -115,18 +115,35 @@ export default function MerchantDashboardPage() {
 
 <!-- The widget handles styling, verification, and checkout automatically! -->`
 
-  // React/Next.js integration (Coming Soon)
-  const reactCode = `// npm install @bitbnpl/react (Coming Soon)
-// ⚠️ Only works for verified merchants
+  // React/Next.js integration
+  const reactCode = `// Step 1: Install the SDK
+npm install @bitbnpl/react
+
+// Step 2: Import and use the component
 import { BitBNPLButton } from '@bitbnpl/react'
 
+function ProductPage() {
+  return (
+    <BitBNPLButton
+      merchantAddress="${integrationToken}"
+      amount={299.99}
+      itemName="Product Name"
+      itemId="prod_123"
+      itemImage="🛍️"
+      merchantName="Your Store"
+    />
+  )
+}
+
+// Custom styling
 <BitBNPLButton
   merchantAddress="${integrationToken}"
-  amount={299.99}
-  itemName="Product Name"
-  itemId="prod_123"
-  itemImage="🛍️"
-/>`
+  amount={499.99}
+  itemName="Premium Product"
+  style={{ borderRadius: '12px', padding: '14px 28px' }}
+>
+  Buy Now with BitBNPL
+</BitBNPLButton>`
 
   const getActiveCode = () => {
     switch (selectedIntegration) {
@@ -341,7 +358,7 @@ import { BitBNPLButton } from '@bitbnpl/react'
                           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
-                      React SDK <span className="text-xs opacity-70">(Soon)</span>
+                      React SDK
                     </button>
                   </div>
 
@@ -358,8 +375,8 @@ import { BitBNPLButton } from '@bitbnpl/react'
                       </p>
                     )}
                     {selectedIntegration === 'react' && (
-                      <p className="text-sm text-[var(--text-muted)]">
-                        🚧 Coming Soon - React/Next.js component with TypeScript support.
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        ✅ <strong>Best for React/Next.js apps</strong> - TypeScript-ready component with full type safety and React hooks integration.
                       </p>
                     )}
                   </div>
@@ -417,6 +434,23 @@ import { BitBNPLButton } from '@bitbnpl/react'
                           </p>
                           <p className="text-xs text-[var(--text-muted)]">
                             💡 Tip: Customize each button with different amounts and product details using data attributes
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedIntegration === 'react' && (
+                    <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h4 className="font-semibold text-green-600 mb-1">React SDK is ready!</h4>
+                          <p className="text-sm text-[var(--text-secondary)] mb-2">
+                            Install the npm package and import the component. Full TypeScript support included with props validation and IntelliSense.
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            💡 Tip: Use the onRedirect and onError callbacks to track analytics and handle errors gracefully
                           </p>
                         </div>
                       </div>

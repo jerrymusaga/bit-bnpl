@@ -1,5 +1,5 @@
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import MerchantRegistryABI from '@/lib/abis/MerchantRegistry.json'
 
 // Deployed contract address
@@ -131,10 +131,10 @@ export function useMerchantRegistry() {
       hash: deactivateHash,
     })
 
-  // Parse merchant data
-  useEffect(() => {
+  // Parse merchant data using useMemo to avoid infinite loops
+  const parsedMerchantData = useMemo(() => {
     if (merchantRawData && Array.isArray(merchantRawData)) {
-      setMerchantData({
+      return {
         businessName: merchantRawData[0] as string,
         storeUrl: merchantRawData[1] as string,
         category: merchantRawData[2] as string,
@@ -145,9 +145,17 @@ export function useMerchantRegistry() {
         totalSales: Number(merchantRawData[7]),
         totalVolume: (merchantRawData[8] as bigint).toString(),
         registeredAt: Number(merchantRawData[9]),
-      })
+      }
     }
+    return null
   }, [merchantRawData])
+
+  // Update state only when parsed data changes
+  useEffect(() => {
+    if (parsedMerchantData) {
+      setMerchantData(parsedMerchantData)
+    }
+  }, [parsedMerchantData])
 
   // Refetch merchant data after registration/update
   useEffect(() => {
