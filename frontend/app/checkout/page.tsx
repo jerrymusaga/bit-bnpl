@@ -64,44 +64,95 @@ export default function CheckoutPage() {
     total: number
     plan: InstallmentPlan
   } | null>(null)
+  const [urlItemAdded, setUrlItemAdded] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  // Mark as initialized after mount to ensure cart has loaded from localStorage
+  useEffect(() => {
+    setIsInitialized(true)
+  }, [])
 
   // Verify merchant if coming from URL
   const merchantAddress = urlMerchant || (cartItems[0]?.merchantId as `0x${string}`) || null
   const { merchant: merchantInfo } = useMerchantDetails(merchantAddress as `0x${string}` | undefined)
 
-  // Handle URL parameters for direct merchant integration
+  // Handle URL parameters AND sessionStorage for direct merchant integration
   useEffect(() => {
-    const merchant = searchParams.get('merchant')
-    const amount = searchParams.get('amount')
-    const itemName = searchParams.get('itemName') || searchParams.get('item')
-    const itemId = searchParams.get('itemId') || searchParams.get('id')
-    const itemImage = searchParams.get('itemImage') || searchParams.get('image') || '🛍️'
-    const merchantName = searchParams.get('merchantName') || 'Merchant'
+    // Wait for initialization to ensure cart has loaded from localStorage
+    if (!isInitialized) return
+
+    // Only run once to prevent infinite loop
+    if (urlItemAdded) return
+
+    // Check sessionStorage first (from widget), then fall back to URL params
+    let merchant = searchParams.get('merchant')
+    let amount = searchParams.get('amount')
+    let itemName = searchParams.get('itemName') || searchParams.get('item')
+    let itemId = searchParams.get('itemId') || searchParams.get('id')
+    let itemImage = searchParams.get('itemImage') || searchParams.get('image') || '🛍️'
+    let merchantName = searchParams.get('merchantName') || 'Merchant'
+
+    // Try to read from sessionStorage if URL params not present
+    if (!merchant || !amount) {
+      try {
+        const sessionData = sessionStorage.getItem('bitbnpl_checkout_data')
+        if (sessionData) {
+          const data = JSON.parse(sessionData)
+          // Use sessionStorage data if it's fresh (within last 5 minutes)
+          if (data.timestamp && Date.now() - data.timestamp < 5 * 60 * 1000) {
+            merchant = data.merchant
+            amount = data.amount
+            itemName = data.itemName || 'Product'
+            itemId = data.itemId
+            itemImage = data.itemImage || '🛍️'
+            merchantName = data.merchantName || 'Merchant'
+
+            // Clear sessionStorage after reading
+            sessionStorage.removeItem('bitbnpl_checkout_data')
+          }
+        }
+      } catch (error) {
+        console.error('Failed to read checkout data from sessionStorage:', error)
+      }
+    }
 
     if (merchant && amount && itemName) {
       // Validate merchant address format
       if (!merchant.startsWith('0x') || merchant.length !== 42) {
         setMerchantVerificationError('Invalid merchant address format')
+        setUrlItemAdded(true) // Prevent retrying
         return
       }
 
       // Store merchant address for verification
       setUrlMerchant(merchant)
 
-      // Add item to cart automatically
-      const priceNum = parseFloat(amount)
-      if (!isNaN(priceNum)) {
-        addToCart({
-          id: itemId || `url-item-${Date.now()}`,
-          name: itemName,
-          price: priceNum,
-          image: itemImage,
-          merchantId: merchant,
-          merchantName: merchantName,
-        })
+      // Check if item is already in cart (from localStorage)
+      const itemExists = cartItems.some(item =>
+        item.id === itemId && item.merchantId === merchant
+      )
+
+      // Only add if not already in cart
+      if (!itemExists) {
+        const priceNum = parseFloat(amount)
+        if (!isNaN(priceNum)) {
+          addToCart({
+            id: itemId || `url-item-${Date.now()}`,
+            name: itemName,
+            price: priceNum,
+            image: itemImage,
+            merchantId: merchant,
+            merchantName: merchantName,
+          })
+        }
       }
+
+      setUrlItemAdded(true) // Mark as added to prevent re-adding
+
+      // Clear URL params to prevent re-adding on refresh
+      window.history.replaceState({}, '', '/checkout')
     }
-  }, [searchParams, addToCart])
+  }, [searchParams, addToCart, urlItemAdded, isInitialized, cartItems])
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const total = subtotal // No tax for crypto payments

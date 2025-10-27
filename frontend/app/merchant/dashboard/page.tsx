@@ -98,12 +98,12 @@ export default function MerchantDashboardPage() {
   Pay with BitBNPL 🟠
 </a>`
 
-  // Widget code - Auto-generates buttons (Coming Soon)
-  const widgetCode = `<!-- Add BitBNPL Widget (Coming Soon) -->
+  // Widget code - JavaScript widget for any website
+  const widgetCode = `<!-- Step 1: Add BitBNPL Widget Script -->
 <!-- ⚠️ Only works for verified merchants -->
 <script src="${baseUrl}/widget.js" data-merchant="${integrationToken}"></script>
 
-<!-- Payment Button -->
+<!-- Step 2: Add Payment Buttons -->
 <button
   class="bitbnpl-button"
   data-amount="299.99"
@@ -111,7 +111,9 @@ export default function MerchantDashboardPage() {
   data-item-id="prod_123"
   data-item-image="🛍️">
   Pay with BitBNPL
-</button>`
+</button>
+
+<!-- The widget handles styling, verification, and checkout automatically! -->`
 
   // React/Next.js integration (Coming Soon)
   const reactCode = `// npm install @bitbnpl/react (Coming Soon)
@@ -329,7 +331,7 @@ import { BitBNPLButton } from '@bitbnpl/react'
                           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
-                      Widget <span className="text-xs opacity-70">(Soon)</span>
+                      Widget
                     </button>
                     <button
                       onClick={() => setSelectedIntegration('react')}
@@ -351,8 +353,8 @@ import { BitBNPLButton } from '@bitbnpl/react'
                       </p>
                     )}
                     {selectedIntegration === 'widget' && (
-                      <p className="text-sm text-[var(--text-muted)]">
-                        🚧 Coming Soon - JavaScript widget that auto-generates payment buttons on your site.
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        ✅ <strong>Recommended for most sites</strong> - JavaScript widget that auto-generates and styles payment buttons. Works with any website or framework.
                       </p>
                     )}
                     {selectedIntegration === 'react' && (
@@ -398,6 +400,23 @@ import { BitBNPLButton } from '@bitbnpl/react'
                           </p>
                           <p className="text-xs text-[var(--text-muted)]">
                             💡 Tip: Replace the amount, itemName, and itemId with your actual product details
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedIntegration === 'widget' && (
+                    <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h4 className="font-semibold text-green-600 mb-1">Widget is ready!</h4>
+                          <p className="text-sm text-[var(--text-secondary)] mb-2">
+                            Add the script tag to your website once, then use the button markup anywhere on your site. The widget automatically handles styling, verification, and checkout.
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            💡 Tip: Customize each button with different amounts and product details using data attributes
                           </p>
                         </div>
                       </div>
