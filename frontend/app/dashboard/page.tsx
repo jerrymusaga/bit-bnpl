@@ -12,6 +12,7 @@ import { ActiveInstallments } from '@/components/dashboard/ActiveInstallments'
 import { TransactionHistory } from '@/components/dashboard/TransactionHistory'
 import { CollateralHealthMeter } from '@/components/dashboard/CollateralHealthMeter'
 import { StatsCard } from '@/components/dashboard/StatsCard'
+import { BuyBTCButton } from '@/components/onramp'
 import { TrendingUp, AlertCircle, Clock, Coins, Wallet, DollarSign, Activity } from 'lucide-react'
 import Link from 'next/link'
 
@@ -290,6 +291,17 @@ export default function DashboardPage() {
                       </span>
                     </Button>
                   </Link>
+
+                  <BuyBTCButton
+                    variant="primary"
+                    size="md"
+                    fullWidth
+                    onSuccess={() => {
+                      // Refresh page after successful BTC purchase
+                      window.location.reload()
+                    }}
+                  />
+
                   <Button
                     variant="outline"
                     fullWidth

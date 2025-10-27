@@ -833,11 +833,11 @@ export default function CheckoutPage() {
                           </Link>
 
                           <div className="bg-[var(--bg-tertiary)] rounded-lg p-3 border border-[var(--border-color)]">
-                            <p className="text-xs font-semibold text-[var(--text-primary)] mb-2">What you can do:</p>
+                            <p className="text-xs font-semibold text-[var(--text-primary)] mb-2">How BitBNPL works:</p>
                             <ul className="text-xs text-[var(--text-muted)] space-y-1.5">
-                              <li>• <span className="text-[var(--text-secondary)]">Lock Bitcoin</span> to unlock borrowing capacity</li>
-                              <li>• <span className="text-[var(--text-secondary)]">Borrow MUSD</span> to pay in full (0% interest)</li>
-                              <li>• Use borrowing capacity for installment payments</li>
+                              <li>• <span className="text-[var(--text-secondary)]">Buy BTC</span> and lock it as collateral</li>
+                              <li>• <span className="text-[var(--text-secondary)]">Borrow MUSD</span> against your Bitcoin</li>
+                              <li>• <span className="text-[var(--text-secondary)]">Shop with MUSD</span> while keeping your BTC upside</li>
                             </ul>
                           </div>
                         </div>

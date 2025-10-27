@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@/compo
 import { useMerchantRegistry } from '@/hooks/useMerchantRegistry'
 import { useMezoContracts } from '@/hooks/useMezoContracts'
 import { MerchantTransactions } from '@/components/merchant/MerchantTransactions'
+import { SellBTCButton } from '@/components/onramp'
 import {
   DollarSign,
   ShoppingCart,
@@ -302,7 +303,17 @@ function ProductPage() {
             <div className="text-3xl font-bold text-[var(--text-primary)] mb-1">
               {formatMUSD(musdBalance)}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">In your wallet</div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-[var(--text-muted)]">In your wallet</div>
+              <SellBTCButton
+                variant="ghost"
+                size="sm"
+                onSuccess={() => {
+                  // Refresh page after successful cash out
+                  window.location.reload()
+                }}
+              />
+            </div>
           </Card>
         </div>
 
@@ -515,6 +526,49 @@ function ProductPage() {
 
           {/* Right Column - Info */}
           <div className="space-y-6">
+            {/* Cash Out Section */}
+            <Card padding="lg" className="border-green-500/20 bg-gradient-to-br from-green-500/5 to-transparent">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Wallet className="h-5 w-5 mr-2 text-green-500" />
+                  Cash Out Earnings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mt-4 space-y-4">
+                  <div className="text-center p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
+                    <p className="text-sm text-[var(--text-muted)] mb-2">Available to Cash Out</p>
+                    <p className="text-3xl font-bold text-green-500 mb-1">{formatMUSD(musdBalance)}</p>
+                    <p className="text-xs text-[var(--text-muted)]">Convert to fiat currency</p>
+                  </div>
+
+                  <SellBTCButton
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    onSuccess={() => {
+                      window.location.reload()
+                    }}
+                  />
+
+                  <div className="space-y-2 text-xs text-[var(--text-muted)]">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>Instant cash out to your bank account</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>Secure via MoonPay - trusted by millions</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>Competitive rates with transparent fees</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Merchant Info */}
             <Card padding="lg">
               <CardHeader>
