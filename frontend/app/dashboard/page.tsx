@@ -27,7 +27,6 @@ export default function DashboardPage() {
 
   // Use real Mezo contract data
   const {
-    borrowingCapacity,
     currentDebt,
     accruedInterest,
     collateralAmount,
@@ -64,8 +63,6 @@ export default function DashboardPage() {
   const collateralAmountNum = parseFloat(collateralAmount)
   const currentDebtNum = parseFloat(currentDebt)
   const accruedInterestNum = parseFloat(accruedInterest)
-  const borrowingCapacityNum = parseFloat(borrowingCapacity)
-  const availableMUSD = Math.max(0, borrowingCapacityNum - currentDebtNum)
 
   // Calculate collateralization ratio using real BTC price from Mezo PriceFeed oracle
   const collateralUSDValue = collateralAmountNum * btcPrice

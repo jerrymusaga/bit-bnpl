@@ -95,7 +95,18 @@ export async function POST(request: NextRequest) {
  * Event Handlers
  */
 
-async function handleTransactionCreated(data: any) {
+interface MoonPayTransactionData {
+  id: string
+  status: string
+  currency?: string
+  baseCurrency?: string
+  walletAddress?: string
+  failureReason?: string
+  cryptoAmount?: number
+  baseCurrencyAmount?: number
+}
+
+async function handleTransactionCreated(data: MoonPayTransactionData) {
   console.log('[MoonPay] Transaction created:', {
     id: data.id,
     status: data.status,
@@ -110,7 +121,7 @@ async function handleTransactionCreated(data: any) {
   // - Set initial status
 }
 
-async function handleTransactionUpdated(data: any) {
+async function handleTransactionUpdated(data: MoonPayTransactionData) {
   console.log('[MoonPay] Transaction updated:', {
     id: data.id,
     status: data.status,
@@ -122,7 +133,7 @@ async function handleTransactionUpdated(data: any) {
   // - Send notification to user if needed
 }
 
-async function handleTransactionCompleted(data: any) {
+async function handleTransactionCompleted(data: MoonPayTransactionData) {
   console.log('[MoonPay] Transaction completed:', {
     id: data.id,
     status: data.status,
@@ -138,7 +149,7 @@ async function handleTransactionCompleted(data: any) {
   // - Update user's available balance/capacity
 }
 
-async function handleTransactionFailed(data: any) {
+async function handleTransactionFailed(data: MoonPayTransactionData) {
   console.log('[MoonPay] Transaction failed:', {
     id: data.id,
     status: data.status,

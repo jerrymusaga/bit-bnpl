@@ -1,7 +1,7 @@
 'use client'
 
 import { useMoonPay } from '@/hooks/useMoonPay'
-import { X, AlertCircle, Wallet, ExternalLink, Bitcoin } from 'lucide-react'
+import { X, Wallet, ExternalLink, Bitcoin } from 'lucide-react'
 import { useState } from 'react'
 
 export interface BuyBTCModalProps {

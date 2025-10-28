@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
 import { Code, Package, CheckCircle, Zap } from 'lucide-react'
 import BitBNPLButton from '@/components/BitBNPLButton'
 

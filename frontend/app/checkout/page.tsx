@@ -38,8 +38,6 @@ export default function CheckoutPage() {
     createHash,
   } = useInstallmentProcessor()
 
-  const { musdBalanceRaw } = useMezoContracts()
-
   // MUSD approval for pay in full
   const {
     writeContract: approveWrite,
@@ -284,6 +282,7 @@ export default function CheckoutPage() {
       // Trigger checkout again
       handleCheckout()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isApproveConfirmed, needsApproval])
 
   // Handle checkout
@@ -884,7 +883,7 @@ export default function CheckoutPage() {
                           <p className="text-orange-300 font-medium mb-1">Installments Not Available</p>
                           <p className="text-xs text-orange-200">
                             You need {formatMUSD(total.toString())} borrowing capacity for installments, but you have {formatMUSD(availableCapacity.toString())}.
-                            Select "Pay in Full" above to use your {formatMUSD(musdBalance)} MUSD instead.
+                            Select &quot;Pay in Full&quot; above to use your {formatMUSD(musdBalance)} MUSD instead.
                           </p>
                         </div>
                       </div>

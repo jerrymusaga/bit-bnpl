@@ -155,7 +155,7 @@ export default function WidgetDemoPage() {
                     <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                       <p className="text-sm text-green-600 font-medium mb-2">
                         <CheckCircle className="h-4 w-4 inline mr-1" />
-                        That's it! No additional configuration needed.
+                        That&apos;s it! No additional configuration needed.
                       </p>
                       <p className="text-xs text-[var(--text-muted)]">
                         The widget handles everything: styling, verification, and checkout flow.

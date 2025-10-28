@@ -76,16 +76,6 @@ export function TransactionHistory() {
     loadCompletedPurchases()
   }, [userPurchaseCount, getPurchase])
 
-  // Helper to format date
-  const formatDate = (timestamp: number): string => {
-    if (!timestamp || timestamp === 0) return 'N/A'
-    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
-
   if (isLoading || loadingPurchases) {
     return (
       <Card padding="lg">

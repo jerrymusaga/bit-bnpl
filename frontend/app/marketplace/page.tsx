@@ -131,7 +131,7 @@ function VerifiedMerchantCounter({
         }
       }
     }
-  }, [isLoading, merchant?.isVerified, merchant?.isActive, merchantAddress, countedRef, onCountUpdate])
+  }, [isLoading, merchant, merchantAddress, countedRef, onCountUpdate])
 
   return null
 }
