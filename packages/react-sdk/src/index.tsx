@@ -19,7 +19,7 @@ export interface BitBNPLButtonProps {
   style?: CSSProperties
   /** Custom className */
   className?: string
-  /** BitBNPL base URL (default: https://bitbnpl.com) */
+  /** BitBNPL base URL (default: https://bitbnpl.vercel.app) */
   baseUrl?: string
   /** Callback when redirect starts */
   onRedirect?: () => void
@@ -62,7 +62,7 @@ export function BitBNPLButton({
   children,
   style,
   className,
-  baseUrl = 'https://bitbnpl.com',
+  baseUrl = 'https://bitbnpl.vercel.app',
   onRedirect,
   onError,
   disabled = false,

@@ -4,7 +4,7 @@
  * Allows merchants to easily integrate BitBNPL payment buttons on their website
  *
  * Usage:
- * <script src="https://bitbnpl.com/widget.js" data-merchant="0xYourMerchantAddress"></script>
+ * <script src="https://bitbnpl.vercel.app/widget.js" data-merchant="0xYourMerchantAddress"></script>
  *
  * <button
  *   class="bitbnpl-button"
@@ -19,8 +19,8 @@
 (function() {
   'use strict';
 
-  // Configuration
-  const BITBNPL_BASE_URL = window.location.origin; // Use current origin for now (production will be https://bitbnpl.com)
+  // Configuration - Production URL
+  const BITBNPL_BASE_URL = 'https://bitbnpl.vercel.app';
   const MERCHANT_REGISTRY_ADDRESS = '0xB2Dbc7689F4C1E7310693bD19cbd33c6548B9a73';
   const RPC_URL = 'https://testnet.mezo.org';
 

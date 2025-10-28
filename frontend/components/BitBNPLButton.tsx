@@ -36,7 +36,7 @@ export default function BitBNPLButton({
   const [isLoading, setIsLoading] = useState(false)
 
   // Use window.location.origin in browser, fallback for SSR
-  const effectiveBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://bitbnpl.com')
+  const effectiveBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://bitbnpl.vercel.app')
 
   // Validate merchant address
   if (!merchantAddress || !merchantAddress.match(/^0x[a-fA-F0-9]{40}$/)) {

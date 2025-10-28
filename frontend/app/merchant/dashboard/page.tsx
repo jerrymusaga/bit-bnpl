@@ -77,8 +77,8 @@ export default function MerchantDashboardPage() {
     return formatMUSD(musd)
   }
 
-  // Get base URL (will be updated for production)
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bitbnpl.com'
+  // Get base URL for production deployment
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://bitbnpl.vercel.app'
 
   // Generate unique integration token based on merchant address
   // This prevents unverified merchants from copying integration code

@@ -48,7 +48,7 @@ function ProductPage() {
 | `children` | `ReactNode` | ❌ | Custom button text (default: "Pay with BitBNPL") |
 | `style` | `CSSProperties` | ❌ | Custom inline styles |
 | `className` | `string` | ❌ | Custom CSS class |
-| `baseUrl` | `string` | ❌ | BitBNPL base URL (default: https://bitbnpl.com) |
+| `baseUrl` | `string` | ❌ | BitBNPL base URL (default: https://bitbnpl.vercel.app) |
 | `onRedirect` | `() => void` | ❌ | Callback when redirect starts |
 | `onError` | `(error: Error) => void` | ❌ | Error callback |
 | `disabled` | `boolean` | ❌ | Disable the button |
@@ -149,16 +149,15 @@ const MyButton: React.FC<BitBNPLButtonProps> = (props) => {
 
 To use BitBNPL as a merchant:
 
-1. Visit [https://bitbnpl.com/merchant/register](https://bitbnpl.com/merchant/register)
+1. Visit [https://bitbnpl.vercel.app/merchant/register](https://bitbnpl.vercel.app/merchant/register)
 2. Register your business
 3. Wait for verification (24-48 hours)
 4. Use your merchant address in the SDK
 
 ## Support
 
-- Documentation: [https://docs.bitbnpl.com](https://docs.bitbnpl.com)
+- Live App: [https://bitbnpl.vercel.app](https://bitbnpl.vercel.app)
 - Issues: [https://github.com/bitbnpl/react-sdk/issues](https://github.com/bitbnpl/react-sdk/issues)
-- Discord: [https://discord.gg/bitbnpl](https://discord.gg/bitbnpl)
 
 ## License
 
