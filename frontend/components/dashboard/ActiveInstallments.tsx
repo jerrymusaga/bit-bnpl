@@ -12,16 +12,27 @@ export function ActiveInstallments() {
     totalOwed,
     getPurchase,
     makePayment,
+    approveMUSD,
+    checkMUSDAllowance,
     isPaymentLate,
     isPaying,
+    isApproving,
+    isApprovingConfirming,
+    isApprovingConfirmed,
     isConfirming,
     isConfirmed,
     isLoading,
+    paymentError,
+    approvalError,
   } = useInstallmentProcessor()
 
   const [purchases, setPurchases] = useState<(Purchase & { purchaseId: number; isLate: boolean })[]>([])
   const [loadingPurchases, setLoadingPurchases] = useState(true)
   const [payingPurchaseId, setPayingPurchaseId] = useState<number | null>(null)
+  const [approvingPurchaseId, setApprovingPurchaseId] = useState<number | null>(null)
+  const [needsApproval, setNeedsApproval] = useState<Record<number, boolean>>({})
+  const [paymentSuccess, setPaymentSuccess] = useState<number | null>(null)
+  const [approvalSuccess, setApprovalSuccess] = useState<number | null>(null)
   const isLoadingRef = useRef(false)
   const lastActivePurchasesRef = useRef<number[]>([])
   const hasLoadedRef = useRef(false)
@@ -64,6 +75,13 @@ export function ActiveInstallments() {
             const purchase = await getPurchase(id)
             const late = await isPaymentLate(id)
             console.log(`Purchase #${id}:`, purchase)
+
+            // Check if this purchase needs approval
+            if (purchase) {
+              const hasAllowance = await checkMUSDAllowance(purchase.amountPerPayment)
+              setNeedsApproval(prev => ({ ...prev, [id]: !hasAllowance }))
+            }
+
             return purchase ? { ...purchase, purchaseId: id, isLate: late } : null
           })
         )
@@ -84,23 +102,79 @@ export function ActiveInstallments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePurchases])
 
-  // Handle make payment
+  // Handle make payment with auto-approval if needed
   const handleMakePayment = async (purchaseId: number) => {
-    setPayingPurchaseId(purchaseId)
+    const purchase = purchases.find(p => p.purchaseId === purchaseId)
+    if (!purchase) return
+
     try {
-      await makePayment(purchaseId)
+      // Check if we need approval first
+      if (needsApproval[purchaseId]) {
+        console.log('🔐 MUSD approval needed, requesting approval first...')
+        setApprovingPurchaseId(purchaseId)
+        await approveMUSD(purchase.amountPerPayment)
+        console.log('✅ Approval transaction submitted, waiting for confirmation...')
+        // Payment will be triggered after approval confirms (see useEffect below)
+      } else {
+        // Already approved, proceed with payment
+        console.log('💰 Making payment...')
+        setPayingPurchaseId(purchaseId)
+        await makePayment(purchaseId)
+      }
     } catch (error) {
-      console.error('Payment failed:', error)
+      console.error('Transaction failed:', error)
       setPayingPurchaseId(null)
+      setApprovingPurchaseId(null)
     }
   }
 
-  // Reset paying state when transaction is confirmed
+  // Reset paying state when transaction is confirmed and show success
   useEffect(() => {
-    if (isConfirmed) {
+    if (isConfirmed && payingPurchaseId !== null) {
+      console.log('✅ Payment confirmed!')
+      setPaymentSuccess(payingPurchaseId)
       setPayingPurchaseId(null)
+
+      // Clear success message after 5 seconds
+      const timeout = setTimeout(() => {
+        setPaymentSuccess(null)
+      }, 5000)
+
+      return () => clearTimeout(timeout)
     }
-  }, [isConfirmed])
+  }, [isConfirmed, payingPurchaseId])
+
+  // When approval is confirmed, automatically trigger payment
+  useEffect(() => {
+    if (isApprovingConfirmed && approvingPurchaseId !== null) {
+      console.log('✅ Approval confirmed! Now proceeding with payment...')
+      setApprovalSuccess(approvingPurchaseId)
+      setNeedsApproval(prev => ({ ...prev, [approvingPurchaseId]: false }))
+
+      // Automatically trigger payment after approval
+      const purchaseId = approvingPurchaseId
+      setApprovingPurchaseId(null)
+      setPayingPurchaseId(purchaseId)
+
+      // Small delay to ensure state updates
+      setTimeout(async () => {
+        try {
+          await makePayment(purchaseId)
+          console.log('💰 Payment transaction submitted!')
+        } catch (error) {
+          console.error('Payment failed after approval:', error)
+          setPayingPurchaseId(null)
+        }
+      }, 100)
+
+      // Clear success message after 5 seconds
+      const timeout = setTimeout(() => {
+        setApprovalSuccess(null)
+      }, 5000)
+
+      return () => clearTimeout(timeout)
+    }
+  }, [isApprovingConfirmed, approvingPurchaseId, makePayment])
 
   // Helper to calculate days until due
   const getDaysUntilDue = (dueTimestamp: number): number => {
@@ -286,22 +360,68 @@ export function ActiveInstallments() {
                   </div>
                 )}
 
-                {/* Action Button */}
+                {/* Action Button - Single click approve + pay */}
                 <Button
                   variant={isOverdue ? 'danger' : 'accent'}
                   fullWidth
                   onClick={() => handleMakePayment(purchase.purchaseId)}
-                  disabled={isPaying || isConfirming}
-                  loading={payingPurchaseId === purchase.purchaseId && (isPaying || isConfirming)}
+                  disabled={
+                    (approvingPurchaseId === purchase.purchaseId && (isApproving || isApprovingConfirming)) ||
+                    (payingPurchaseId === purchase.purchaseId && (isPaying || isConfirming))
+                  }
+                  loading={
+                    (approvingPurchaseId === purchase.purchaseId && (isApproving || isApprovingConfirming)) ||
+                    (payingPurchaseId === purchase.purchaseId && (isPaying || isConfirming))
+                  }
                 >
-                  {payingPurchaseId === purchase.purchaseId && isPaying ? (
-                    'Processing...'
+                  {approvingPurchaseId === purchase.purchaseId && isApproving ? (
+                    'Step 1/2: Approving MUSD...'
+                  ) : approvingPurchaseId === purchase.purchaseId && isApprovingConfirming ? (
+                    'Step 1/2: Confirming Approval...'
+                  ) : payingPurchaseId === purchase.purchaseId && isPaying ? (
+                    'Step 2/2: Processing Payment...'
                   ) : payingPurchaseId === purchase.purchaseId && isConfirming ? (
-                    'Confirming...'
+                    'Step 2/2: Confirming Payment...'
                   ) : (
                     `Make Payment (${parseFloat(purchase.amountPerPayment).toFixed(2)} MUSD)`
                   )}
                 </Button>
+
+                {/* Success Messages */}
+                {paymentSuccess === purchase.purchaseId && (
+                  <div className="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded flex items-start space-x-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-green-400">
+                      Payment successful! Your transaction has been confirmed.
+                    </p>
+                  </div>
+                )}
+                {approvalSuccess === purchase.purchaseId && !payingPurchaseId && (
+                  <div className="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded flex items-start space-x-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-green-400">
+                      MUSD approved! Processing payment automatically...
+                    </p>
+                  </div>
+                )}
+
+                {/* Error Messages */}
+                {payingPurchaseId === purchase.purchaseId && paymentError && (
+                  <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded flex items-start space-x-2">
+                    <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-400">
+                      {paymentError.message || 'Payment failed. Please try again.'}
+                    </p>
+                  </div>
+                )}
+                {approvingPurchaseId === purchase.purchaseId && approvalError && (
+                  <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded flex items-start space-x-2">
+                    <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-400">
+                      {approvalError.message || 'Approval failed. Please try again.'}
+                    </p>
+                  </div>
+                )}
               </div>
             )
           })}
