@@ -15,6 +15,7 @@ export function useMoonPay() {
   const { address } = useAccount()
   const [isOpen, setIsOpen] = useState(false)
   const [moonpayWindow, setMoonpayWindow] = useState<Window | null>(null)
+  const [currentOptions, setCurrentOptions] = useState<MoonPayOptions>({})
 
   /**
    * Open MoonPay Buy Widget
@@ -51,6 +52,7 @@ export function useMoonPay() {
         if (popup) {
           setMoonpayWindow(popup)
           setIsOpen(true)
+          setCurrentOptions(options) // Store options to call callbacks later
         } else {
           options.onError?.(new Error('Popup blocked. Please allow popups for this site.'))
         }
@@ -96,6 +98,7 @@ export function useMoonPay() {
         if (popup) {
           setMoonpayWindow(popup)
           setIsOpen(true)
+          setCurrentOptions(options) // Store options to call callbacks later
         } else {
           options.onError?.(new Error('Popup blocked. Please allow popups for this site.'))
         }
@@ -115,7 +118,11 @@ export function useMoonPay() {
     }
     setMoonpayWindow(null)
     setIsOpen(false)
-  }, [moonpayWindow])
+
+    // Call the onClose callback if provided
+    currentOptions.onClose?.()
+    setCurrentOptions({}) // Clear options
+  }, [moonpayWindow, currentOptions])
 
   /**
    * Monitor popup window for close events
@@ -125,14 +132,13 @@ export function useMoonPay() {
 
     const checkClosed = setInterval(() => {
       if (moonpayWindow.closed) {
-        setIsOpen(false)
-        setMoonpayWindow(null)
+        closeWidget() // This will call onClose callback and reset state
         clearInterval(checkClosed)
       }
     }, 500)
 
     return () => clearInterval(checkClosed)
-  }, [moonpayWindow])
+  }, [moonpayWindow, closeWidget])
 
   /**
    * Listen for postMessage events from MoonPay widget
