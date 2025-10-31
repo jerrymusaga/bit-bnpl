@@ -21,8 +21,8 @@
 
   // Configuration - Production URL
   const BITBNPL_BASE_URL = 'https://bitbnpl.vercel.app';
-  const MERCHANT_REGISTRY_ADDRESS = '0xB2Dbc7689F4C1E7310693bD19cbd33c6548B9a73';
-  const RPC_URL = 'https://testnet.mezo.org';
+  const MERCHANT_REGISTRY_ADDRESS = '0xC80a70e2C2a8d3534043F200C83D772943AF0D91';
+  const RPC_URL = 'https://rpc.test.mezo.org';
 
   // Get merchant address from script tag
   const scriptTag = document.currentScript || document.querySelector('script[data-merchant]');
