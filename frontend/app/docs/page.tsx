@@ -239,7 +239,7 @@ export default function DocsPage() {
               <CardContent>
                 <div className="mt-4 space-y-4">
                   <p className="text-sm text-[var(--text-secondary)]">
-                    Can't find what you're looking for? Our team is here to help.
+                    Can&apos;t find what you&apos;re looking for? Our team is here to help.
                   </p>
                   <Button variant="accent" fullWidth>
                     Contact Support

@@ -48,7 +48,7 @@ export default function GettingStartedPage() {
                 <div>
                   <p className="font-semibold text-[var(--text-primary)]">Merchant Account</p>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    You need a verified merchant account. <Link href="/merchant/register" className="text-[var(--color-accent-600)] hover:underline">Register here</Link> if you haven't already.
+                    You need a verified merchant account. <Link href="/merchant/register" className="text-[var(--color-accent-600)] hover:underline">Register here</Link> if you haven&apos;t already.
                   </p>
                 </div>
               </div>
@@ -108,7 +108,7 @@ export default function GettingStartedPage() {
               <div className="flex-1">
                 <h3 className="text-xl font-bold mb-3">Get Your Merchant Address</h3>
                 <p className="text-[var(--text-secondary)] mb-4">
-                  Once verified, your wallet address becomes your merchant identifier. You'll find it in your dashboard.
+                  Once verified, your wallet address becomes your merchant identifier. You&apos;ll find it in your dashboard.
                 </p>
                 <div className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
                   <p className="text-xs text-[var(--text-muted)] mb-2">Example Merchant Address:</p>
@@ -262,9 +262,9 @@ export default function GettingStartedPage() {
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="text-xl font-bold mb-3">You're Live!</h3>
+                <h3 className="text-xl font-bold mb-3">You&apos;re Live!</h3>
                 <p className="text-[var(--text-secondary)] mb-4">
-                  Once testing is complete, you're ready to accept payments. Customers can now:
+                  Once testing is complete, you&apos;re ready to accept payments. Customers can now:
                 </p>
                 <ul className="space-y-2 text-[var(--text-secondary)]">
                   <li className="flex items-start space-x-2">

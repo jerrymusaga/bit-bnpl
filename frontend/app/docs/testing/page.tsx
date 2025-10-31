@@ -64,14 +64,14 @@ export default function TestingPage() {
           <CardContent>
             <div className="mt-4 space-y-4">
               <p className="text-[var(--text-secondary)]">
-                To test your integration, you'll need testnet BTC and MUSD tokens.
+                To test your integration, you&apos;ll need testnet BTC and MUSD tokens.
               </p>
 
               <div className="space-y-4">
                 <div className="p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
                   <h4 className="font-semibold text-[var(--text-primary)] mb-2">Step 1: Get Testnet BTC</h4>
                   <p className="text-sm text-[var(--text-secondary)] mb-3">
-                    Join the Mezo Discord to earn "mats" tokens, then convert them to testnet BTC via the Mezo Portal.
+                    Join the Mezo Discord to earn &quot;mats&quot; tokens, then convert them to testnet BTC via the Mezo Portal.
                   </p>
                   <Button variant="outline" size="sm">
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -260,7 +260,7 @@ export default function TestingPage() {
           <CardContent>
             <div className="mt-4 space-y-4">
               <p className="text-[var(--text-secondary)]">
-                Once you've completed all test scenarios successfully, you're ready to start accepting real payments!
+                Once you&apos;ve completed all test scenarios successfully, you&apos;re ready to start accepting real payments!
               </p>
 
               <div className="space-y-2">
