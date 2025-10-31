@@ -131,14 +131,14 @@ export function ActiveInstallments() {
   // Reset paying state when transaction is confirmed and show success
   useEffect(() => {
     if (isConfirmed && payingPurchaseId !== null) {
-      console.log('✅ Payment confirmed!')
+      console.log('✅ Payment confirmed! Data will refresh automatically.')
       setPaymentSuccess(payingPurchaseId)
       setPayingPurchaseId(null)
 
-      // Clear success message after 5 seconds
+      // Clear success message after 8 seconds (longer to ensure user sees it)
       const timeout = setTimeout(() => {
         setPaymentSuccess(null)
-      }, 5000)
+      }, 8000)
 
       return () => clearTimeout(timeout)
     }
@@ -151,21 +151,14 @@ export function ActiveInstallments() {
       setApprovalSuccess(approvingPurchaseId)
       setNeedsApproval(prev => ({ ...prev, [approvingPurchaseId]: false }))
 
-      // Automatically trigger payment after approval
+      // Store purchaseId before clearing
       const purchaseId = approvingPurchaseId
-      setApprovingPurchaseId(null)
-      setPayingPurchaseId(purchaseId)
 
-      // Small delay to ensure state updates
-      setTimeout(async () => {
-        try {
-          await makePayment(purchaseId)
-          console.log('💰 Payment transaction submitted!')
-        } catch (error) {
-          console.error('Payment failed after approval:', error)
-          setPayingPurchaseId(null)
-        }
-      }, 100)
+      // Clear approving state
+      setApprovingPurchaseId(null)
+
+      // Call handleMakePayment again - this time it will proceed to payment
+      handleMakePayment(purchaseId)
 
       // Clear success message after 5 seconds
       const timeout = setTimeout(() => {
@@ -174,7 +167,8 @@ export function ActiveInstallments() {
 
       return () => clearTimeout(timeout)
     }
-  }, [isApprovingConfirmed, approvingPurchaseId, makePayment])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isApprovingConfirmed, approvingPurchaseId])
 
   // Helper to calculate days until due
   const getDaysUntilDue = (dueTimestamp: number): number => {
@@ -389,11 +383,21 @@ export function ActiveInstallments() {
 
                 {/* Success Messages */}
                 {paymentSuccess === purchase.purchaseId && (
-                  <div className="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded flex items-start space-x-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-green-400">
-                      Payment successful! Your transaction has been confirmed.
-                    </p>
+                  <div className="mt-2 p-3 bg-green-500/10 border border-green-500/20 rounded">
+                    <div className="flex items-start space-x-2 mb-1">
+                      <CheckCircle2 className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-green-400 mb-1">
+                          Payment Successful!
+                        </p>
+                        <p className="text-xs text-green-400/80">
+                          Your payment of {parseFloat(purchase.amountPerPayment).toFixed(2)} MUSD has been confirmed.
+                          {purchase.paymentsRemaining > 1
+                            ? ` ${purchase.paymentsRemaining - 1} payment${purchase.paymentsRemaining - 1 !== 1 ? 's' : ''} remaining.`
+                            : ' Purchase complete!'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {approvalSuccess === purchase.purchaseId && !payingPurchaseId && (

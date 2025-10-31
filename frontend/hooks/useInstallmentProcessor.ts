@@ -38,7 +38,7 @@ export interface InstallmentProcessorActions {
     installments: 1 | 4 | 6 | 8,
     userBorrowingCapacity: string
   ) => Promise<void>
-  makePayment: (purchaseId: number) => Promise<void>
+  makePayment: (purchaseId: number, skipChecks?: boolean) => Promise<void>
   approveMUSD: (amount: string) => Promise<void>
   checkMUSDAllowance: (amount: string) => Promise<boolean>
   getPurchase: (purchaseId: number) => Promise<Purchase | null>
@@ -302,9 +302,10 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
   /**
    * Make an installment payment
    * @param purchaseId ID of the purchase
+   * @param skipChecks Skip balance and allowance checks (for auto-payment after approval)
    * @returns Transaction hash
    */
-  const makePayment = async (purchaseId: number): Promise<void> => {
+  const makePayment = async (purchaseId: number, skipChecks = false): Promise<void> => {
     if (!address) {
       throw new Error('Wallet not connected')
     }
@@ -312,24 +313,26 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     try {
       console.log('Making payment for purchase:', purchaseId)
 
-      // Get purchase details to check payment amount
-      const purchase = await getPurchase(purchaseId)
-      if (!purchase) {
-        throw new Error('Purchase not found')
-      }
+      if (!skipChecks) {
+        // Get purchase details to check payment amount
+        const purchase = await getPurchase(purchaseId)
+        if (!purchase) {
+          throw new Error('Purchase not found')
+        }
 
-      // Check MUSD balance
-      const musdBalance = musdBalanceData ? formatUnits(musdBalanceData as bigint, 18) : '0'
-      const paymentAmount = parseFloat(purchase.amountPerPayment)
+        // Check MUSD balance
+        const musdBalance = musdBalanceData ? formatUnits(musdBalanceData as bigint, 18) : '0'
+        const paymentAmount = parseFloat(purchase.amountPerPayment)
 
-      if (parseFloat(musdBalance) < paymentAmount) {
-        throw new Error(`Insufficient MUSD balance. You have ${parseFloat(musdBalance).toFixed(2)} MUSD but need ${paymentAmount.toFixed(2)} MUSD`)
-      }
+        if (parseFloat(musdBalance) < paymentAmount) {
+          throw new Error(`Insufficient MUSD balance. You have ${parseFloat(musdBalance).toFixed(2)} MUSD but need ${paymentAmount.toFixed(2)} MUSD`)
+        }
 
-      // Check allowance
-      const hasAllowance = await checkMUSDAllowance(purchase.amountPerPayment)
-      if (!hasAllowance) {
-        throw new Error('Insufficient MUSD allowance. Please approve MUSD spending first.')
+        // Check allowance
+        const hasAllowance = await checkMUSDAllowance(purchase.amountPerPayment)
+        if (!hasAllowance) {
+          throw new Error('Insufficient MUSD allowance. Please approve MUSD spending first.')
+        }
       }
 
       payWrite({
@@ -460,17 +463,30 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
     }
   }
 
+  // Read MUSD balance refetch function
+  const { refetch: refetchMUSDBalance } = useReadContract({
+    address: MUSD_ADDRESS,
+    abi: MUSDDeployment.abi,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+    },
+  })
+
   // Refetch data when transactions are confirmed
   useEffect(() => {
     if (isCreateConfirmed || isPayConfirmed) {
-      console.log('🔄 Transaction confirmed! Refetching purchase data...')
+      console.log('🔄 Transaction confirmed! Refetching all data...')
       // Refetch all purchase-related data
       refetchCount()
       refetchActivePurchases()
       refetchTotalOwed()
-      console.log('✅ Data refetch triggered')
+      refetchMUSDBalance()
+      refetchAllowance()
+      console.log('✅ Complete data refetch triggered')
     }
-  }, [isCreateConfirmed, isPayConfirmed, refetchCount, refetchActivePurchases, refetchTotalOwed])
+  }, [isCreateConfirmed, isPayConfirmed, refetchCount, refetchActivePurchases, refetchTotalOwed, refetchMUSDBalance, refetchAllowance])
 
   // Refetch allowance when approval is confirmed
   useEffect(() => {

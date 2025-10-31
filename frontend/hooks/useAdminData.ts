@@ -5,8 +5,8 @@ import { formatUnits } from 'viem'
 import MerchantRegistryABI from '@/lib/abis/MerchantRegistry.json'
 import InstallmentProcessorABI from '@/lib/abis/InstallmentProcessor.json'
 
-const MERCHANT_REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_MERCHANT_REGISTRY_ADDRESS as `0x${string}`) || '0x7f98F00d0e94642cEaE77bb686A9aD26E7c6A1FB'
-const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0x4A8888E8a768F07AE7B24416463DDEe50d6bCe8a'
+const MERCHANT_REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_MERCHANT_REGISTRY_ADDRESS as `0x${string}`) || '0xB2Dbc7689F4C1E7310693bD19cbd33c6548B9a73'
+const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0x059C79412565a945159c6c9E037e8D54E1093Ef8'
 
 export interface MerchantData {
   address: string

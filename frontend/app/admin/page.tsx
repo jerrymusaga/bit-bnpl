@@ -429,7 +429,7 @@ function LiquidityTab({ stats }: { stats: { liquidityPool: string } }) {
   const [savedWithdrawAmount, setSavedWithdrawAmount] = useState('')
 
   const MUSD_ADDRESS = (process.env.NEXT_PUBLIC_MUSD_ADDRESS as `0x${string}`) || '0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503'
-  const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0xEE4296C9Ad973F7CD61aBbB138976F3b597Fc0F4'
+  const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0x059C79412565a945159c6c9E037e8D54E1093Ef8'
 
   // Auto-trigger deposit after approval confirms
   useEffect(() => {
