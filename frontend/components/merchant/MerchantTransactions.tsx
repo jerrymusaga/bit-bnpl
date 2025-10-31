@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui
 import { ShoppingBag, User, CheckCircle, Clock } from 'lucide-react'
 import InstallmentProcessorABI from '@/lib/abis/InstallmentProcessor.json'
 
-const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0x059C79412565a945159c6c9E037e8D54E1093Ef8'
+const INSTALLMENT_PROCESSOR_ADDRESS = (process.env.NEXT_PUBLIC_INSTALLMENT_PROCESSOR_ADDRESS as `0x${string}`) || '0x78a473F3D3DEC35220E47A45B796CcaB70726439'
 
 interface MerchantPurchase {
   user: string
