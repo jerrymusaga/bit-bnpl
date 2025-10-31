@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { Store, ShoppingBag, Star, BadgeCheck, ExternalLink, Sparkles } from 'lucide-react'
+import { Store, ShoppingBag, TrendingUp, BadgeCheck, ExternalLink, Sparkles } from 'lucide-react'
 import { Button, Badge } from '@/components/ui'
 import { useAllMerchantsWithDetails, useMerchantDetails } from '@/hooks/useAdminData'
 
@@ -28,8 +28,11 @@ function MerchantCard({ merchantAddress }: { merchantAddress: `0x${string}` }) {
     return null
   }
 
-  // Calculate rating based on sales (mock calculation)
-  const rating = merchant.totalSales > 0 ? (4.5 + (merchant.totalSales % 5) * 0.1).toFixed(1) : '4.5'
+  // Format volume for display
+  const formattedVolume = parseFloat(merchant.totalVolume).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  })
 
   return (
     <Link
@@ -78,15 +81,18 @@ function MerchantCard({ merchantAddress }: { merchantAddress: `0x${string}` }) {
           </div>
         </div>
 
-        <div className="flex items-center space-x-4 mb-4 pb-4 border-b border-[var(--border-color)]">
-          <div className="flex items-center space-x-1">
-            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-            <span className="text-sm font-semibold text-[var(--text-primary)]">
-              {rating}
-            </span>
+        <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-[var(--border-color)]">
+          <div>
+            <p className="text-xs text-[var(--text-muted)] mb-1">Total Sales</p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
+              {merchant.totalSales.toLocaleString()}
+            </p>
           </div>
-          <div className="text-sm text-[var(--text-muted)]">
-            {merchant.totalSales.toLocaleString()} sales
+          <div>
+            <p className="text-xs text-[var(--text-muted)] mb-1">Volume</p>
+            <p className="text-sm font-semibold text-green-600">
+              {formattedVolume} MUSD
+            </p>
           </div>
         </div>
 
@@ -104,15 +110,17 @@ function MerchantCard({ merchantAddress }: { merchantAddress: `0x${string}` }) {
   )
 }
 
-// Component to track and count verified merchants
+// Component to track and count verified merchants and total volume
 function VerifiedMerchantCounter({
   merchantAddress,
   countedRef,
-  onCountUpdate
+  onCountUpdate,
+  onVolumeUpdate
 }: {
   merchantAddress: `0x${string}`
   countedRef: React.MutableRefObject<Set<string>>
   onCountUpdate: () => void
+  onVolumeUpdate: (volume: number) => void
 }) {
   const { merchant, isLoading } = useMerchantDetails(merchantAddress)
   const hasReportedRef = useRef(false)
@@ -128,10 +136,15 @@ function VerifiedMerchantCounter({
 
         if (isVerified) {
           onCountUpdate()
+          // Add merchant's volume to total
+          const volume = parseFloat(merchant.totalVolume)
+          if (!isNaN(volume)) {
+            onVolumeUpdate(volume)
+          }
         }
       }
     }
-  }, [isLoading, merchant, merchantAddress, countedRef, onCountUpdate])
+  }, [isLoading, merchant, merchantAddress, countedRef, onCountUpdate, onVolumeUpdate])
 
   return null
 }
@@ -140,12 +153,17 @@ export default function MarketplacePage() {
   // Fetch all merchants from contract
   const { merchantAddresses, isLoading } = useAllMerchantsWithDetails(0, 100)
 
-  // Track verified merchant count
+  // Track verified merchant count and total volume
   const [verifiedCount, setVerifiedCount] = useState(0)
+  const [totalVolume, setTotalVolume] = useState(0)
   const countedMerchantsRef = useRef(new Set<string>())
 
   const handleCountUpdate = useCallback(() => {
     setVerifiedCount(prev => prev + 1)
+  }, [])
+
+  const handleVolumeUpdate = useCallback((volume: number) => {
+    setTotalVolume(prev => prev + volume)
   }, [])
 
   return (
@@ -158,6 +176,7 @@ export default function MarketplacePage() {
             merchantAddress={address}
             countedRef={countedMerchantsRef}
             onCountUpdate={handleCountUpdate}
+            onVolumeUpdate={handleVolumeUpdate}
           />
         ))}
 
@@ -212,15 +231,17 @@ export default function MarketplacePage() {
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-1">Ready to accept payments</p>
           </div>
-          <div className="group p-6 bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-2 border-yellow-500/20 rounded-xl hover:border-yellow-500/40 transition-all hover:shadow-lg">
+          <div className="group p-6 bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-2 border-blue-500/20 rounded-xl hover:border-blue-500/40 transition-all hover:shadow-lg">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">Avg Rating</span>
-              <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+              <span className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wide">Total Volume</span>
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <TrendingUp className="h-5 w-5 text-blue-500" />
               </div>
             </div>
-            <p className="text-4xl font-bold text-[var(--text-primary)]">4.7</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Customer satisfaction</p>
+            <p className="text-4xl font-bold text-[var(--text-primary)]">
+              {isLoading ? '...' : totalVolume.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">MUSD processed</p>
           </div>
         </div>
 
