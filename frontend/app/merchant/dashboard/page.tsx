@@ -335,12 +335,31 @@ function ProductPage() {
               </CardHeader>
               <CardContent>
                 <div className="mt-4">
-                  <p className="text-sm text-[var(--text-secondary)] mb-4">
-                    Choose your integration method below
-                  </p>
+                  {!merchantData.isVerified ? (
+                    // Show locked state for unverified merchants
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
+                        <Clock className="h-8 w-8 text-yellow-500" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+                        Integration Code Locked
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)] mb-4 max-w-md mx-auto">
+                        Your integration code will be available once your account is verified. This ensures secure and compliant merchant onboarding.
+                      </p>
+                      <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20">
+                        <CheckCircle className="h-4 w-4 text-yellow-500" />
+                        <span className="text-sm text-yellow-600">Verification typically completes within 24-48 hours</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-[var(--text-secondary)] mb-4">
+                        Choose your integration method below
+                      </p>
 
-                  {/* Integration Method Tabs */}
-                  <div className="flex space-x-2 mb-4 p-1 bg-[var(--bg-secondary)] rounded-lg">
+                      {/* Integration Method Tabs */}
+                      <div className="flex space-x-2 mb-4 p-1 bg-[var(--bg-secondary)] rounded-lg">
                     <button
                       onClick={() => setSelectedIntegration('simple')}
                       className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all ${
@@ -468,16 +487,18 @@ function ProductPage() {
                     </div>
                   )}
 
-                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Button variant="accent" fullWidth disabled={!merchantData.isVerified}>
-                      <Code className="h-4 w-4 mr-2" />
-                      View Full Docs
-                    </Button>
-                    <Button variant="outline" fullWidth disabled={!merchantData.isVerified}>
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Test Integration
-                    </Button>
-                  </div>
+                      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Button variant="accent" fullWidth disabled={!merchantData.isVerified}>
+                          <Code className="h-4 w-4 mr-2" />
+                          View Full Docs
+                        </Button>
+                        <Button variant="outline" fullWidth disabled={!merchantData.isVerified}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Test Integration
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
