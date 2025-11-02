@@ -538,7 +538,7 @@ Comprehensive merchant documentation about Mezo integration:
 
 1. **Clone the repository**:
 ```bash
-git clone https://github.com/musaga/bitbnpl.git
+git clone https://github.com/jerrymusaga/bitbnpl.git
 cd bitbnpl
 ```
 

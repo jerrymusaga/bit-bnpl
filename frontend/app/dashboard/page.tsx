@@ -280,7 +280,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="mt-4 space-y-3">
-                  <Link href="/demo">
+                  <Link href="/marketplace">
                     <Button variant="accent" fullWidth className="group">
                       <span className="flex items-center justify-center space-x-2">
                         <Coins className="h-4 w-4" />
