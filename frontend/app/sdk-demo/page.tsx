@@ -5,7 +5,7 @@ import { Code, Package, CheckCircle, Zap } from 'lucide-react'
 import BitBNPLButton from '@/components/BitBNPLButton'
 
 export default function SDKDemoPage() {
-  const DEMO_MERCHANT_ADDRESS = '0x51A4FDB15787bd43FE3C96c49e559526B637bC66'
+  const DEMO_MERCHANT_ADDRESS = '0x131EC028Bb8Bd936A3416635777D905497F3D21f'
 
   return (
     <main className="min-h-screen py-8">
@@ -158,7 +158,7 @@ export default function SDKDemoPage() {
                       padding: '14px 28px',
                     }}
                   >
-                    Get Console Now
+                    Buy Console Now
                   </BitBNPLButton>
                 </div>
               </div>
