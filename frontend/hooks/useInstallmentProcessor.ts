@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useCallback } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
-import { parseUnits, formatUnits } from 'viem'
+import { useAccount, useReadContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
+import { parseUnits, formatUnits, type Abi } from 'viem'
+import { useUniversalTransaction } from './useUniversalTransaction'
 import InstallmentProcessorABI from '@/lib/abis/InstallmentProcessor.json'
 import MUSDDeployment from '@mezo-org/musd-contracts/deployments/matsnet/MUSD.json'
 
@@ -72,41 +73,41 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
   const { address } = useAccount()
   const publicClient = usePublicClient()
 
-  // Write contract hooks
+  // Universal transaction hooks (work with both Bitcoin and EVM wallets)
   const {
     writeContract: createWrite,
     data: createHash,
     isPending: isCreating,
     error: createError,
-  } = useWriteContract()
+  } = useUniversalTransaction()
 
   const {
     writeContract: payWrite,
     data: payHash,
     isPending: isPaying,
     error: paymentError,
-  } = useWriteContract()
+  } = useUniversalTransaction()
 
   const {
     writeContract: depositWrite,
     data: depositHash,
     isPending: isDepositing,
     error: depositError,
-  } = useWriteContract()
+  } = useUniversalTransaction()
 
   const {
     writeContract: withdrawWrite,
     data: withdrawHash,
     isPending: isWithdrawing,
     error: withdrawError,
-  } = useWriteContract()
+  } = useUniversalTransaction()
 
   const {
     writeContract: approveWrite,
     data: approvalHash,
     isPending: isApproving,
     error: approvalError,
-  } = useWriteContract()
+  } = useUniversalTransaction()
 
   // Transaction confirmation hooks
   const { isLoading: isCreateConfirming, isSuccess: isCreateConfirmed } = useWaitForTransactionReceipt({
@@ -228,7 +229,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
 
       createWrite({
         address: INSTALLMENT_PROCESSOR_ADDRESS,
-        abi: InstallmentProcessorABI,
+        abi: InstallmentProcessorABI as Abi,
         functionName: 'createPurchase',
         args: [merchant, amountWei, installments, capacityWei],
       })
@@ -287,7 +288,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
 
       approveWrite({
         address: MUSD_ADDRESS,
-        abi: MUSDDeployment.abi,
+        abi: MUSDDeployment.abi as Abi,
         functionName: 'approve',
         args: [INSTALLMENT_PROCESSOR_ADDRESS, amountWei],
       })
@@ -337,7 +338,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
 
       payWrite({
         address: INSTALLMENT_PROCESSOR_ADDRESS,
-        abi: InstallmentProcessorABI,
+        abi: InstallmentProcessorABI as Abi,
         functionName: 'makePayment',
         args: [BigInt(purchaseId)],
       })
@@ -433,7 +434,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
 
       depositWrite({
         address: INSTALLMENT_PROCESSOR_ADDRESS,
-        abi: InstallmentProcessorABI,
+        abi: InstallmentProcessorABI as Abi,
         functionName: 'depositLiquidity',
         args: [amountInWei],
       })
@@ -453,7 +454,7 @@ export function useInstallmentProcessor(): InstallmentProcessorData & Installmen
 
       withdrawWrite({
         address: INSTALLMENT_PROCESSOR_ADDRESS,
-        abi: InstallmentProcessorABI,
+        abi: InstallmentProcessorABI as Abi,
         functionName: 'withdrawLiquidity',
         args: [amountInWei],
       })

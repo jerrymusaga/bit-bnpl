@@ -1,6 +1,7 @@
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi'
-import { parseUnits, formatUnits } from 'viem'
+import { useReadContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi'
+import { parseUnits, formatUnits, type Abi } from 'viem'
 import { useEffect } from 'react'
+import { useUniversalTransaction } from './useUniversalTransaction'
 
 // Import contract ABIs and addresses from @mezo-org/musd-contracts
 import MUSDDeployment from '@mezo-org/musd-contracts/deployments/matsnet/MUSD.json'
@@ -105,14 +106,14 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
   // Get minimum net debt from BorrowerOperations contract
   const { data: minNetDebtData } = useReadContract({
     address: BORROWER_OPERATIONS_ADDRESS,
-    abi: BorrowerOperationsDeployment.abi,
+    abi: BorrowerOperationsDeployment.abi as Abi,
     functionName: 'minNetDebt',
   })
 
   // Get liquidation reserve (MUSD_GAS_COMPENSATION) - amount held in reserve for liquidations
   const { data: gasCompensationData } = useReadContract({
     address: BORROWER_OPERATIONS_ADDRESS,
-    abi: BorrowerOperationsDeployment.abi,
+    abi: BorrowerOperationsDeployment.abi as Abi,
     functionName: 'MUSD_GAS_COMPENSATION',
   })
 
@@ -126,16 +127,16 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
     },
   })
 
-  // Borrow MUSD (open or adjust trove)
-  const { writeContract: borrowWrite, data: borrowHash, isPending: isBorrowing, error: borrowError } = useWriteContract()
+  // Universal transaction hook (works with both Bitcoin and EVM wallets)
+  const { writeContract: borrowWrite, data: borrowHash, isPending: isBorrowing, error: borrowError, isBitcoinWallet } = useUniversalTransaction()
 
   // Debug logging for borrow state
   useEffect(() => {
-    console.log('Borrow state changed:', { borrowHash, isBorrowing, error: borrowError })
+    console.log('Borrow state changed:', { borrowHash, isBorrowing, error: borrowError, isBitcoinWallet })
     if (borrowError) {
       console.error('Write contract error:', borrowError)
     }
-  }, [borrowHash, isBorrowing, borrowError])
+  }, [borrowHash, isBorrowing, borrowError, isBitcoinWallet])
 
   const { isLoading: isBorrowTxLoading } = useWaitForTransactionReceipt({
     hash: borrowHash,
@@ -162,7 +163,7 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
     try {
       borrowWrite({
         address: BORROWER_OPERATIONS_ADDRESS,
-        abi: BorrowerOperationsDeployment.abi,
+        abi: BorrowerOperationsDeployment.abi as Abi,
         functionName: 'openTrove',
         args: [
           musdAmount, // _debtAmount - MUSD to borrow
@@ -178,8 +179,8 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
     }
   }
 
-  // Repay MUSD
-  const { writeContract: repayWrite, data: repayHash, isPending: isRepaying } = useWriteContract()
+  // Repay MUSD (using separate universal transaction hook instance)
+  const { writeContract: repayWrite, data: repayHash, isPending: isRepaying } = useUniversalTransaction()
 
   const { isLoading: isRepayTxLoading } = useWaitForTransactionReceipt({
     hash: repayHash,
@@ -190,7 +191,7 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
 
     return repayWrite({
       address: BORROWER_OPERATIONS_ADDRESS,
-      abi: BorrowerOperationsDeployment.abi,
+      abi: BorrowerOperationsDeployment.abi as Abi,
       functionName: 'repayMUSD',
       args: [
         musdAmount, // Amount to repay
@@ -206,7 +207,7 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
 
     return repayWrite({
       address: BORROWER_OPERATIONS_ADDRESS,
-      abi: BorrowerOperationsDeployment.abi,
+      abi: BorrowerOperationsDeployment.abi as Abi,
       functionName: 'closeTrove',
       args: [],
     })
@@ -218,7 +219,7 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
 
     return borrowWrite({
       address: BORROWER_OPERATIONS_ADDRESS,
-      abi: BorrowerOperationsDeployment.abi,
+      abi: BorrowerOperationsDeployment.abi as Abi,
       functionName: 'addColl',
       args: [
         address, // _upperHint
@@ -234,7 +235,7 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
 
     return borrowWrite({
       address: BORROWER_OPERATIONS_ADDRESS,
-      abi: BorrowerOperationsDeployment.abi,
+      abi: BorrowerOperationsDeployment.abi as Abi,
       functionName: 'withdrawColl',
       args: [
         btcAmount, // Amount to withdraw
@@ -255,7 +256,7 @@ export function useMezoContracts(): MezoContractData & MezoContractActions {
 
     return borrowWrite({
       address: BORROWER_OPERATIONS_ADDRESS,
-      abi: BorrowerOperationsDeployment.abi,
+      abi: BorrowerOperationsDeployment.abi as Abi,
       functionName: 'adjustTrove',
       args: [
         collWithdrawal, // _collWithdrawal (amount to withdraw, 0 if none)
