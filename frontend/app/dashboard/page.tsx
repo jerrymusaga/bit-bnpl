@@ -8,6 +8,7 @@ import { useMezoContracts, formatMUSD } from '@/hooks/useMezoContracts'
 import { AddCollateralModal } from '@/components/modals/AddCollateralModal'
 import { BorrowMUSDModal } from '@/components/modals/BorrowMUSDModal'
 import { RepayMUSDModal } from '@/components/modals/RepayMUSDModal'
+import { WithdrawCollateralModal } from '@/components/modals/WithdrawCollateralModal'
 import { ActiveInstallments } from '@/components/dashboard/ActiveInstallments'
 import { TransactionHistory } from '@/components/dashboard/TransactionHistory'
 import { CollateralHealthMeter } from '@/components/dashboard/CollateralHealthMeter'
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const [isAddCollateralOpen, setIsAddCollateralOpen] = useState(false)
   const [isBorrowMUSDOpen, setIsBorrowMUSDOpen] = useState(false)
   const [isRepayMUSDOpen, setIsRepayMUSDOpen] = useState(false)
+  const [isWithdrawCollateralOpen, setIsWithdrawCollateralOpen] = useState(false)
 
   // Use real Mezo contract data
   const {
@@ -321,6 +323,18 @@ export default function DashboardPage() {
                       <span>Borrow More MUSD</span>
                     </span>
                   </Button>
+                  <Button
+                    variant="outline"
+                    fullWidth
+                    onClick={() => setIsWithdrawCollateralOpen(true)}
+                    disabled={collateralAmountNum === 0}
+                    className="group"
+                  >
+                    <span className="flex items-center justify-center space-x-2">
+                      <TrendingUp className="h-4 w-4 group-hover:text-[var(--color-warning-500)] transition-colors rotate-180" />
+                      <span>Withdraw Collateral</span>
+                    </span>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -419,6 +433,10 @@ export default function DashboardPage() {
       <RepayMUSDModal
         isOpen={isRepayMUSDOpen}
         onClose={() => setIsRepayMUSDOpen(false)}
+      />
+      <WithdrawCollateralModal
+        isOpen={isWithdrawCollateralOpen}
+        onClose={() => setIsWithdrawCollateralOpen(false)}
       />
     </main>
   )

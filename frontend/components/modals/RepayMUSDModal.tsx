@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui'
 import { useMezoContracts, formatMUSD } from '@/hooks/useMezoContracts'
+import { useCollateralProtection } from '@/hooks/useCollateralProtection'
 import { parseUnits } from 'viem'
 import { useWaitForTransactionReceipt } from 'wagmi'
-import { CheckCircle, Loader2, TrendingUp } from 'lucide-react'
+import { CheckCircle, Loader2, TrendingUp, AlertTriangle, ShoppingCart } from 'lucide-react'
 
 interface RepayMUSDModalProps {
   isOpen: boolean
@@ -31,6 +32,9 @@ export function RepayMUSDModal({ isOpen, onClose }: RepayMUSDModalProps) {
   const [musdAmount, setMusdAmount] = useState('')
   const [error, setError] = useState('')
   const [isClosingTrove, setIsClosingTrove] = useState(false)
+
+  // Get collateral protection checks
+  const { canCloseTrove, protectionSummary } = useCollateralProtection()
 
   // Watch for transaction confirmation
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -103,6 +107,13 @@ export function RepayMUSDModal({ isOpen, onClose }: RepayMUSDModalProps) {
 
   const handleCloseTrove = async () => {
     setError('')
+
+    // Check if closing trove is allowed with active installments
+    if (!canCloseTrove.allowed) {
+      setError(canCloseTrove.reason || 'Cannot close trove at this time')
+      return
+    }
+
     setIsClosingTrove(true)
 
     try {
@@ -127,6 +138,35 @@ export function RepayMUSDModal({ isOpen, onClose }: RepayMUSDModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Repay Your Loan" size="md">
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Active Installments Warning */}
+        {protectionSummary.hasActiveInstallments && (
+          <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <ShoppingCart className="h-5 w-5 text-orange-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-orange-400 mb-1">
+                  Active Installments Detected
+                </p>
+                <p className="text-xs text-orange-300 mb-2">
+                  You have {protectionSummary.activeInstallmentCount} active installment payment(s) totaling {formatMUSD(protectionSummary.totalInstallmentDebt.toString())}.
+                </p>
+                {!protectionSummary.hasEnoughMUSD ? (
+                  <div className="p-2 bg-red-500/20 border border-red-500/30 rounded mt-2">
+                    <p className="text-xs text-red-300">
+                      <AlertTriangle className="h-3 w-3 inline mr-1" />
+                      <strong>Warning:</strong> You only have {formatMUSD(protectionSummary.musdBalance.toString())} MUSD but need {formatMUSD(protectionSummary.totalInstallmentDebt.toString())} for installments. Add {formatMUSD(protectionSummary.musdNeeded.toString())} MUSD before closing your position.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-green-400 mt-2">
+                    ✓ You have enough MUSD ({formatMUSD(protectionSummary.musdBalance.toString())}) to cover your installments.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Recovery Mode Warning */}
         {isRecoveryMode && (
           <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
@@ -327,11 +367,21 @@ export function RepayMUSDModal({ isOpen, onClose }: RepayMUSDModalProps) {
             variant="accent"
             fullWidth
             onClick={handleCloseTrove}
-            disabled={isClosingTrove || isRepaying || isConfirming}
+            disabled={!canCloseTrove.allowed || isClosingTrove || isRepaying || isConfirming}
             loading={isClosingTrove}
           >
             {isClosingTrove ? 'Closing Position...' : 'Close Position (Recommended)'}
           </Button>
+          {!canCloseTrove.allowed && canCloseTrove.reason && (
+            <p className="text-xs text-red-400 mt-2">
+              {canCloseTrove.reason}
+            </p>
+          )}
+          {canCloseTrove.allowed && canCloseTrove.warning && (
+            <p className="text-xs text-yellow-400 mt-2">
+              {canCloseTrove.warning}
+            </p>
+          )}
         </div>
 
         {/* Cancel Button */}
